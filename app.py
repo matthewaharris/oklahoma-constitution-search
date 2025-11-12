@@ -5,8 +5,12 @@ Flask application for semantic search of the Oklahoma Constitution
 """
 
 from flask import Flask, render_template, request, jsonify
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_cors import CORS
 from typing import List, Dict
 import os
+import re
 
 # Use environment variables in production, fall back to local config for development
 if os.getenv('PRODUCTION') or os.getenv('RENDER'):
@@ -21,6 +25,40 @@ from vector_database_builder import ConstitutionVectorBuilder
 from rag_search import ConstitutionRAG
 
 app = Flask(__name__)
+
+# Security: Enable CORS with restrictions
+CORS(app, resources={
+    r"/search": {"origins": "*"},
+    r"/ask": {"origins": "*"},
+    r"/health": {"origins": "*"}
+})
+
+# Security: Rate limiting to prevent abuse
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
+# Security: Input validation
+def sanitize_input(text: str, max_length: int = 500) -> str:
+    """Sanitize user input to prevent injection attacks"""
+    if not text:
+        return ""
+
+    # Remove any potential script tags or SQL injection attempts
+    text = re.sub(r'<script.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    text = re.sub(r'javascript:', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'on\w+\s*=', '', text, flags=re.IGNORECASE)
+
+    # Limit length
+    text = text[:max_length]
+
+    # Remove excessive whitespace
+    text = ' '.join(text.split())
+
+    return text.strip()
 
 # Initialize search system
 class SearchSystem:
@@ -100,62 +138,110 @@ search_system = SearchSystem()
 # Global RAG system instance
 rag_system = ConstitutionRAG()
 
+# Security: Add security headers to all responses
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to prevent common attacks"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    return response
+
+# Security: Rate limit error handler
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Handle rate limit exceeded errors"""
+    return jsonify({
+        'error': 'Rate limit exceeded. Please wait a moment and try again.'
+    }), 429
+
 @app.route('/')
 def index():
     """Homepage with search interface"""
     return render_template('index.html')
 
 @app.route('/search', methods=['POST'])
+@limiter.limit("30 per minute")  # More restrictive limit for search
 def search():
     """Handle search requests"""
-    data = request.get_json()
-    query = data.get('query', '').strip()
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request'}), 400
 
-    if not query:
-        return jsonify({'error': 'Please enter a search query'}), 400
+        query = sanitize_input(data.get('query', ''), max_length=500)
 
-    # Get number of results (default 5)
-    top_k = data.get('top_k', 5)
+        if not query:
+            return jsonify({'error': 'Please enter a search query'}), 400
 
-    # Perform search
-    results = search_system.search(query, top_k)
+        # Validate top_k parameter
+        top_k = data.get('top_k', 5)
+        if not isinstance(top_k, int) or top_k < 1 or top_k > 20:
+            top_k = 5
 
-    if not results:
-        return jsonify({'error': 'No results found. Please try a different query.'}), 404
+        # Perform search
+        results = search_system.search(query, top_k)
 
-    return jsonify({'results': results, 'query': query})
+        if not results:
+            return jsonify({'error': 'No results found. Please try a different query.'}), 404
+
+        return jsonify({'results': results, 'query': query})
+
+    except Exception as e:
+        # Don't expose internal errors to users
+        print(f"Search error: {e}")
+        return jsonify({'error': 'Search failed. Please try again.'}), 500
 
 @app.route('/ask', methods=['POST'])
+@limiter.limit("10 per minute")  # Stricter limit for expensive GPT calls
 def ask():
     """Handle RAG question-answering requests"""
-    data = request.get_json()
-    question = data.get('question', '').strip()
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request'}), 400
 
-    if not question:
-        return jsonify({'error': 'Please enter a question'}), 400
+        question = sanitize_input(data.get('question', ''), max_length=500)
 
-    # Get model preference (default to gpt-3.5-turbo for cost efficiency)
-    model = data.get('model', 'gpt-3.5-turbo')
-    num_sources = data.get('num_sources', 3)
+        if not question:
+            return jsonify({'error': 'Please enter a question'}), 400
 
-    # Initialize RAG system if needed
-    if not rag_system.ready:
-        if not rag_system.initialize():
-            return jsonify({'error': 'RAG system initialization failed'}), 503
+        # Validate model selection (only allow approved models)
+        model = data.get('model', 'gpt-3.5-turbo')
+        allowed_models = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo-preview']
+        if model not in allowed_models:
+            model = 'gpt-3.5-turbo'
 
-    # Get answer
-    result = rag_system.ask_question(question, num_sources=num_sources, model=model)
+        # Validate num_sources
+        num_sources = data.get('num_sources', 3)
+        if not isinstance(num_sources, int) or num_sources < 1 or num_sources > 5:
+            num_sources = 3
 
-    if 'error' in result:
-        return jsonify({'error': result['error']}), 500
+        # Initialize RAG system if needed
+        if not rag_system.ready:
+            if not rag_system.initialize():
+                return jsonify({'error': 'Service temporarily unavailable'}), 503
 
-    return jsonify({
-        'answer': result['answer'],
-        'sources': result['sources'],
-        'question': question,
-        'tokens_used': result['tokens_used'],
-        'model': result['model']
-    })
+        # Get answer
+        result = rag_system.ask_question(question, num_sources=num_sources, model=model)
+
+        if 'error' in result:
+            return jsonify({'error': 'Unable to generate answer. Please try again.'}), 500
+
+        return jsonify({
+            'answer': result['answer'],
+            'sources': result['sources'],
+            'question': question,
+            'tokens_used': result['tokens_used'],
+            'model': result['model']
+        })
+
+    except Exception as e:
+        # Don't expose internal errors to users
+        print(f"Ask error: {e}")
+        return jsonify({'error': 'Unable to process question. Please try again.'}), 500
 
 @app.route('/about')
 def about():
