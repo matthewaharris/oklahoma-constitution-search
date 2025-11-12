@@ -4,10 +4,19 @@ RAG (Retrieval-Augmented Generation) for Oklahoma Constitution
 Combines vector search with GPT-4 to answer questions in natural language
 """
 
+import os
 from typing import List, Dict
-from pinecone_config import OPENAI_API_KEY
 from vector_database_builder import ConstitutionVectorBuilder
 import openai
+
+# Import configurations - use environment variables in production
+if os.getenv('PRODUCTION') or os.getenv('RENDER'):
+    from config_production import OPENAI_API_KEY
+else:
+    try:
+        from pinecone_config import OPENAI_API_KEY
+    except ImportError:
+        from config_production import OPENAI_API_KEY
 
 class ConstitutionRAG:
     def __init__(self):

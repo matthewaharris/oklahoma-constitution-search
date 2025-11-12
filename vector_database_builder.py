@@ -6,11 +6,19 @@ Oklahoma Constitution Vector Database Builder using Pinecone
 import json
 import time
 import hashlib
+import os
 from typing import List, Dict, Any
 from pathlib import Path
 
-# Import configurations
-from pinecone_config import *
+# Import configurations - use environment variables in production
+if os.getenv('PRODUCTION') or os.getenv('RENDER'):
+    from config_production import *
+else:
+    try:
+        from pinecone_config import *
+    except ImportError:
+        from config_production import *
+
 from supabase_client import StatutesDatabase
 
 class ConstitutionVectorBuilder:
