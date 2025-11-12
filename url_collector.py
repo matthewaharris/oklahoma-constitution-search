@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from typing import List, Dict
 import re
 from datetime import datetime
+from urllib.parse import urljoin
 
 class StatuteURLCollector:
     def __init__(self, delay_seconds: int = 10):
@@ -47,7 +48,7 @@ class StatuteURLCollector:
             print(f"[ERROR] Failed to fetch {url}: {e}")
             return None
 
-    def extract_statute_links(self, html: str, title_number: int) -> List[Dict]:
+    def extract_statute_links(self, html: str, title_number: int, page_url: str) -> List[Dict]:
         """Extract all statute links from a title index page"""
         if not html:
             return []
@@ -66,7 +67,8 @@ class StatuteURLCollector:
                 if cite_match:
                     cite_id = cite_match.group(1)
 
-                    full_url = href if href.startswith('http') else self.base_url + href
+                    # Build full URL using urljoin (handles relative URLs correctly)
+                    full_url = urljoin(page_url, href)
 
                     # Get link text (section name)
                     link_text = link.get_text(strip=True)
@@ -94,7 +96,7 @@ class StatuteURLCollector:
             print(f"[WARNING] Could not fetch Title {title_number}")
             return []
 
-        links = self.extract_statute_links(html, title_number)
+        links = self.extract_statute_links(html, title_number, index_url)
         print(f"[OK] Found {len(links)} sections in Title {title_number}")
 
         return links
