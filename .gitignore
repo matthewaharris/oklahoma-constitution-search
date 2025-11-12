@@ -1,0 +1,42 @@
+# API Keys and Configuration
+config.py
+pinecone_config.py
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.json
+*.pdf
+*.txt
+!requirements.txt
+!runtime.txt
+!SETUP_README.md
+
+# HTML/Scraping results
+constitution_html/
+constitution_manual_files/
+
+# Logs
+*.log
