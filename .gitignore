@@ -37,6 +37,7 @@ Thumbs.db
 # HTML/Scraping results
 constitution_html/
 constitution_manual_files/
+statute_html/
 
 # Logs
 *.log
