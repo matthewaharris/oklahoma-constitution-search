@@ -182,12 +182,20 @@ class StatuteHTMLProcessor:
             print("Make sure you've run slow_downloader.py first")
             return
 
-        # Confirm before processing
-        if total_files > 100:
-            response = input(f"\nThis will process {total_files} files. Continue? (yes/no): ")
-            if response.lower() != 'yes':
-                print("Cancelled")
-                return
+        # Confirm before processing (skip in non-interactive mode)
+        import os
+        skip_confirm = os.getenv('SKIP_CONFIRM', 'false').lower() == 'true'
+
+        if total_files > 100 and not skip_confirm:
+            try:
+                response = input(f"\nThis will process {total_files} files. Continue? (yes/no): ")
+                if response.lower() != 'yes':
+                    print("Cancelled")
+                    return
+            except EOFError:
+                # Running in non-interactive mode, proceed
+                print("Running in non-interactive mode, proceeding...")
+                pass
 
         # Process files
         success_count = 0

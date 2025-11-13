@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oklahoma Constitution Search</title>
+    <title>Oklahoma Legal Search - Constitution & Statutes</title>
     <style>
         * {
             margin: 0;
@@ -335,8 +335,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Oklahoma Constitution Search</h1>
-            <p>AI-powered search and Q&A system</p>
+            <h1>Oklahoma Legal Search</h1>
+            <p>AI-powered search of Oklahoma Constitution & Statutes</p>
         </div>
 
         <div class="mode-selector">
@@ -351,16 +351,24 @@
                     <input
                         type="text"
                         id="searchInput"
-                        placeholder="Search the Oklahoma Constitution..."
+                        placeholder="Search Oklahoma Constitution & Statutes..."
                         autocomplete="off"
                     >
                     <button class="action-button" onclick="performSearch()">Search</button>
                 </div>
+                <div class="model-selector" style="margin-bottom: 15px;">
+                    <label for="sourceSelect">Search in:</label>
+                    <select id="sourceSelect">
+                        <option value="both" selected>Constitution & Statutes</option>
+                        <option value="constitution">Constitution only</option>
+                        <option value="statutes">Statutes only (Title 10)</option>
+                    </select>
+                </div>
                 <div class="examples">
                     <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
+                    <div class="example-tag" onclick="setSearchQuery('child custody rights')">child custody</div>
+                    <div class="example-tag" onclick="setSearchQuery('foster care regulations')">foster care</div>
                     <div class="example-tag" onclick="setSearchQuery('voting rights')">voting rights</div>
-                    <div class="example-tag" onclick="setSearchQuery('freedom of speech')">freedom of speech</div>
-                    <div class="example-tag" onclick="setSearchQuery('taxation')">taxation</div>
                     <div class="example-tag" onclick="setSearchQuery('separation of powers')">separation of powers</div>
                 </div>
             </div>
@@ -371,16 +379,16 @@
                     <input
                         type="text"
                         id="questionInput"
-                        placeholder="Ask a question about the Oklahoma Constitution..."
+                        placeholder="Ask a question about Oklahoma law..."
                         autocomplete="off"
                     >
                     <button class="action-button" onclick="askQuestion()">Ask</button>
                 </div>
                 <div class="examples">
                     <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
+                    <div class="example-tag" onclick="setQuestion('What are child custody laws in Oklahoma?')">child custody</div>
+                    <div class="example-tag" onclick="setQuestion('How does Oklahoma handle foster care?')">foster care</div>
                     <div class="example-tag" onclick="setQuestion('What are the voting rights in Oklahoma?')">voting rights</div>
-                    <div class="example-tag" onclick="setQuestion('How does Oklahoma handle separation of powers?')">separation of powers</div>
-                    <div class="example-tag" onclick="setQuestion('What does the constitution say about education?')">education</div>
                 </div>
                 <div class="model-selector">
                     <label for="modelSelect">AI Model:</label>
@@ -452,6 +460,7 @@
 
         async function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
+            const source = document.getElementById('sourceSelect').value;
 
             if (!query) {
                 showError('Please enter a search query');
@@ -464,7 +473,7 @@
                 const response = await fetch('/search', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query, top_k: 5 }),
+                    body: JSON.stringify({ query: query, source: source, top_k: 5 }),
                 });
 
                 const data = await response.json();
@@ -528,7 +537,9 @@
                     <div class="result-title">${index + 1}. ${escapeHtml(result.section_name)}</div>
                     <div class="result-meta">
                         <span class="meta-tag score-tag">${result.score}% Match</span>
+                        <span class="meta-tag" style="background: ${result.type === 'constitution' ? '#4CAF50' : '#2196F3'}; color: white;">${escapeHtml(result.source)}</span>
                         ${result.article_number ? `<span class="meta-tag">Article ${escapeHtml(result.article_number)}</span>` : ''}
+                        ${result.title_number ? `<span class="meta-tag">Title ${escapeHtml(result.title_number)}</span>` : ''}
                         ${result.section_number ? `<span class="meta-tag">Section ${escapeHtml(result.section_number)}</span>` : ''}
                         <span class="meta-tag">ID: ${escapeHtml(result.cite_id)}</span>
                     </div>

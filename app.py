@@ -64,6 +64,8 @@ def sanitize_input(text: str, max_length: int = 500) -> str:
 class SearchSystem:
     def __init__(self):
         self.builder = ConstitutionVectorBuilder()
+        self.constitution_index = None
+        self.statutes_index = None
         self.ready = False
 
     def initialize(self):
@@ -78,25 +80,34 @@ class SearchSystem:
             print("[ERROR] Failed to setup clients")
             return False
 
-        # Connect to index
+        # Connect to both indexes
         try:
-            self.builder.index = self.builder.pinecone_client.Index(INDEX_NAME)
-            stats = self.builder.index.describe_index_stats()
+            # Constitution index
+            self.constitution_index = self.builder.pinecone_client.Index("oklahoma-constitution")
+            const_stats = self.constitution_index.describe_index_stats()
+            print(f"[OK] Connected to Constitution index with {const_stats.total_vector_count} vectors")
 
-            if stats.total_vector_count == 0:
-                print("[ERROR] No vectors in index")
-                return False
+            # Statutes index
+            self.statutes_index = self.builder.pinecone_client.Index("oklahoma-statutes")
+            stat_stats = self.statutes_index.describe_index_stats()
+            print(f"[OK] Connected to Statutes index with {stat_stats.total_vector_count} vectors")
 
-            print(f"[OK] Connected to index with {stats.total_vector_count} vectors")
             self.ready = True
             return True
 
         except Exception as e:
-            print(f"[ERROR] Failed to connect to index: {e}")
+            print(f"[ERROR] Failed to connect to indexes: {e}")
             return False
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict]:
-        """Search the constitution"""
+    def search(self, query: str, source: str = 'both', top_k: int = 5) -> List[Dict]:
+        """
+        Search Oklahoma legal documents
+
+        Args:
+            query: Search query
+            source: 'constitution', 'statutes', or 'both'
+            top_k: Number of results to return
+        """
         if not self.ready:
             if not self.initialize():
                 return []
@@ -107,26 +118,55 @@ class SearchSystem:
             if not query_embedding:
                 return []
 
-            # Search
-            search_results = self.builder.index.query(
-                vector=query_embedding[0],
-                top_k=top_k,
-                include_metadata=True
-            )
-
             results = []
-            for match in search_results.matches:
-                result = {
-                    'score': round(match.score * 100, 1),
-                    'cite_id': match.metadata.get('cite_id', 'N/A'),
-                    'section_name': match.metadata.get('section_name', 'Untitled'),
-                    'article_number': match.metadata.get('article_number', ''),
-                    'section_number': match.metadata.get('section_number', ''),
-                    'text': match.metadata.get('text', ''),
-                }
-                results.append(result)
 
-            return results
+            # Search constitution
+            if source in ['constitution', 'both']:
+                const_results = self.constitution_index.query(
+                    vector=query_embedding[0],
+                    top_k=top_k,
+                    include_metadata=True
+                )
+
+                for match in const_results.matches:
+                    result = {
+                        'score': round(match.score * 100, 1),
+                        'source': 'Oklahoma Constitution',
+                        'cite_id': match.metadata.get('cite_id', 'N/A'),
+                        'section_name': match.metadata.get('section_name', 'Untitled'),
+                        'article_number': match.metadata.get('article_number', ''),
+                        'section_number': match.metadata.get('section_number', ''),
+                        'text': match.metadata.get('text', ''),
+                        'type': 'constitution'
+                    }
+                    results.append(result)
+
+            # Search statutes
+            if source in ['statutes', 'both']:
+                stat_results = self.statutes_index.query(
+                    vector=query_embedding[0],
+                    top_k=top_k,
+                    include_metadata=True
+                )
+
+                for match in stat_results.matches:
+                    result = {
+                        'score': round(match.score * 100, 1),
+                        'source': 'Oklahoma Statutes - Title 10',
+                        'cite_id': match.metadata.get('cite_id', 'N/A'),
+                        'section_name': match.metadata.get('section_name', 'Untitled'),
+                        'title_number': match.metadata.get('title_number', ''),
+                        'section_number': match.metadata.get('section_number', ''),
+                        'text': match.metadata.get('text', ''),
+                        'type': 'statute'
+                    }
+                    results.append(result)
+
+            # Sort by relevance score
+            results.sort(key=lambda x: x['score'], reverse=True)
+
+            # Return top_k results
+            return results[:top_k]
 
         except Exception as e:
             print(f"[ERROR] Search failed: {e}")
@@ -176,18 +216,24 @@ def search():
         if not query:
             return jsonify({'error': 'Please enter a search query'}), 400
 
+        # Validate source parameter
+        source = data.get('source', 'both')
+        allowed_sources = ['constitution', 'statutes', 'both']
+        if source not in allowed_sources:
+            source = 'both'
+
         # Validate top_k parameter
         top_k = data.get('top_k', 5)
         if not isinstance(top_k, int) or top_k < 1 or top_k > 20:
             top_k = 5
 
         # Perform search
-        results = search_system.search(query, top_k)
+        results = search_system.search(query, source=source, top_k=top_k)
 
         if not results:
             return jsonify({'error': 'No results found. Please try a different query.'}), 404
 
-        return jsonify({'results': results, 'query': query})
+        return jsonify({'results': results, 'query': query, 'source': source})
 
     except Exception as e:
         # Don't expose internal errors to users

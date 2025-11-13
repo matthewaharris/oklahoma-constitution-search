@@ -1,8 +1,8 @@
 # Core web framework
 Flask==3.0.3
 gunicorn==23.0.0
-Flask-Limiter==3.5.0
-Flask-CORS==4.0.0
+Flask-Limiter==3.8.0
+Flask-CORS==5.0.0
 
 # AI & Vector Database
 openai==2.2.0
