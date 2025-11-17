@@ -153,11 +153,13 @@ class SearchSystem:
 
             # Search constitution
             if source in ['constitution', 'both']:
+                print(f"[DEBUG] Searching Constitution index for: '{query}' (top_k={top_k})")
                 const_results = self.constitution_index.query(
                     vector=query_embedding[0],
                     top_k=top_k,
                     include_metadata=True
                 )
+                print(f"[DEBUG] Constitution search returned {len(const_results.matches)} results")
 
                 for match in const_results.matches:
                     cite_id = match.metadata.get('cite_id', 'N/A')
@@ -185,11 +187,13 @@ class SearchSystem:
 
             # Search statutes
             if source in ['statutes', 'both']:
+                print(f"[DEBUG] Searching Statutes index for: '{query}' (top_k={top_k})")
                 stat_results = self.statutes_index.query(
                     vector=query_embedding[0],
                     top_k=top_k,
                     include_metadata=True
                 )
+                print(f"[DEBUG] Statutes search returned {len(stat_results.matches)} results")
 
                 for match in stat_results.matches:
                     cite_id = match.metadata.get('cite_id', 'N/A')
@@ -217,6 +221,11 @@ class SearchSystem:
 
             # Sort by relevance score
             results.sort(key=lambda x: x['score'], reverse=True)
+
+            # Log final results summary
+            const_count = sum(1 for r in results[:top_k] if r['type'] == 'constitution')
+            stat_count = sum(1 for r in results[:top_k] if r['type'] == 'statute')
+            print(f"[DEBUG] Returning {len(results[:top_k])} results: {const_count} from Constitution, {stat_count} from Statutes")
 
             # Return top_k results
             return results[:top_k]
