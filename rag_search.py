@@ -7,21 +7,24 @@ Combines vector search with GPT-4 to answer questions in natural language
 import os
 from typing import List, Dict
 from vector_database_builder import ConstitutionVectorBuilder
+from supabase import create_client
 import openai
 
 # Import configurations - use environment variables in production
 if os.getenv('PRODUCTION') or os.getenv('RENDER'):
-    from config_production import OPENAI_API_KEY
+    from config_production import OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY
 else:
     try:
         from pinecone_config import OPENAI_API_KEY
+        from config import SUPABASE_URL, SUPABASE_KEY
     except ImportError:
-        from config_production import OPENAI_API_KEY
+        from config_production import OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY
 
 class ConstitutionRAG:
     def __init__(self):
         self.builder = ConstitutionVectorBuilder()
         self.openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        self.supabase = None
         self.ready = False
 
     def initialize(self):
@@ -34,6 +37,14 @@ class ConstitutionRAG:
         # Setup clients
         if not self.builder.setup_clients():
             print("[ERROR] Failed to setup clients")
+            return False
+
+        # Connect to Supabase
+        try:
+            self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            print("[OK] Connected to Supabase")
+        except Exception as e:
+            print(f"[ERROR] Failed to connect to Supabase: {e}")
             return False
 
         # Connect to index
@@ -52,6 +63,17 @@ class ConstitutionRAG:
         except Exception as e:
             print(f"[ERROR] Failed to connect to index: {e}")
             return False
+
+    def get_document_text(self, cite_id: str) -> str:
+        """Fetch full document text from Supabase"""
+        try:
+            result = self.supabase.table('statutes').select('main_text').eq('cite_id', cite_id).limit(1).execute()
+            if result.data and len(result.data) > 0:
+                return result.data[0].get('main_text', '')
+            return ''
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch text for {cite_id}: {e}")
+            return ''
 
     def search_relevant_sections(self, query: str, top_k: int = 5) -> List[Dict]:
         """Search for relevant constitution sections"""
@@ -74,13 +96,14 @@ class ConstitutionRAG:
 
             results = []
             for match in search_results.matches:
+                cite_id = match.metadata.get('cite_id', 'N/A')
                 result = {
                     'score': match.score,
-                    'cite_id': match.metadata.get('cite_id', 'N/A'),
-                    'section_name': match.metadata.get('section_name', 'Untitled'),
+                    'cite_id': cite_id,
+                    'section_name': match.metadata.get('page_title', 'Untitled'),
                     'article_number': match.metadata.get('article_number', ''),
                     'section_number': match.metadata.get('section_number', ''),
-                    'text': match.metadata.get('text', ''),
+                    'text': self.get_document_text(cite_id),
                 }
                 results.append(result)
 

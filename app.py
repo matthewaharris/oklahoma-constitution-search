@@ -23,6 +23,7 @@ else:
 
 from vector_database_builder import ConstitutionVectorBuilder
 from rag_search import ConstitutionRAG
+from supabase import create_client
 
 app = Flask(__name__)
 
@@ -66,6 +67,7 @@ class SearchSystem:
         self.builder = ConstitutionVectorBuilder()
         self.constitution_index = None
         self.statutes_index = None
+        self.supabase = None
         self.ready = False
 
     def initialize(self):
@@ -80,7 +82,15 @@ class SearchSystem:
             print("[ERROR] Failed to setup clients")
             return False
 
-        # Connect to both indexes
+        # Connect to Supabase
+        try:
+            self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            print("[OK] Connected to Supabase")
+        except Exception as e:
+            print(f"[ERROR] Failed to connect to Supabase: {e}")
+            return False
+
+        # Connect to both Pinecone indexes
         try:
             # Constitution index
             self.constitution_index = self.builder.pinecone_client.Index("oklahoma-constitution")
@@ -98,6 +108,21 @@ class SearchSystem:
         except Exception as e:
             print(f"[ERROR] Failed to connect to indexes: {e}")
             return False
+
+    def get_document_text(self, cite_id: str) -> str:
+        """Fetch full document text from Supabase"""
+        try:
+            result = self.supabase.table('statutes').select('main_text').eq('cite_id', cite_id).limit(1).execute()
+            if result.data and len(result.data) > 0:
+                text = result.data[0].get('main_text', '')
+                # Truncate if too long (for display)
+                if len(text) > 500:
+                    return text[:500] + '...'
+                return text
+            return ''
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch text for {cite_id}: {e}")
+            return ''
 
     def search(self, query: str, source: str = 'both', top_k: int = 5) -> List[Dict]:
         """
@@ -129,14 +154,25 @@ class SearchSystem:
                 )
 
                 for match in const_results.matches:
+                    cite_id = match.metadata.get('cite_id', 'N/A')
+                    article_num = match.metadata.get('article_number', '')
+                    section_num = match.metadata.get('section_number', '')
+
+                    # Build source label
+                    source_label = 'Oklahoma Constitution'
+                    if article_num:
+                        source_label += f' - Article {article_num}'
+                        if section_num:
+                            source_label += f', Section {section_num}'
+
                     result = {
                         'score': round(match.score * 100, 1),
-                        'source': 'Oklahoma Constitution',
-                        'cite_id': match.metadata.get('cite_id', 'N/A'),
-                        'section_name': match.metadata.get('section_name', 'Untitled'),
-                        'article_number': match.metadata.get('article_number', ''),
-                        'section_number': match.metadata.get('section_number', ''),
-                        'text': match.metadata.get('text', ''),
+                        'source': source_label,
+                        'cite_id': cite_id,
+                        'section_name': match.metadata.get('page_title', 'Untitled'),
+                        'article_number': article_num,
+                        'section_number': section_num,
+                        'text': self.get_document_text(cite_id),
                         'type': 'constitution'
                     }
                     results.append(result)
@@ -150,14 +186,25 @@ class SearchSystem:
                 )
 
                 for match in stat_results.matches:
+                    cite_id = match.metadata.get('cite_id', 'N/A')
+                    title_num = match.metadata.get('title_number', '')
+                    section_num = match.metadata.get('section_number', '')
+
+                    # Build source label
+                    source_label = 'Oklahoma Statutes'
+                    if title_num:
+                        source_label += f' - Title {title_num}'
+                        if section_num:
+                            source_label += f', Section {section_num}'
+
                     result = {
                         'score': round(match.score * 100, 1),
-                        'source': 'Oklahoma Statutes - Title 10',
-                        'cite_id': match.metadata.get('cite_id', 'N/A'),
-                        'section_name': match.metadata.get('section_name', 'Untitled'),
-                        'title_number': match.metadata.get('title_number', ''),
-                        'section_number': match.metadata.get('section_number', ''),
-                        'text': match.metadata.get('text', ''),
+                        'source': source_label,
+                        'cite_id': cite_id,
+                        'section_name': match.metadata.get('page_title', 'Untitled'),
+                        'title_number': title_num,
+                        'section_number': section_num,
+                        'text': self.get_document_text(cite_id),
                         'type': 'statute'
                     }
                     results.append(result)
