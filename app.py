@@ -110,15 +110,20 @@ class SearchSystem:
             print(f"[ERROR] Failed to connect to indexes: {e}")
             return False
 
-    def get_document_text(self, cite_id: str) -> str:
-        """Fetch full document text from Supabase"""
+    def get_document_text(self, cite_id: str, max_length: int = 800) -> str:
+        """Fetch full document text from Supabase and truncate for display"""
         try:
             result = self.supabase.table('statutes').select('main_text').eq('cite_id', cite_id).limit(1).execute()
             if result.data and len(result.data) > 0:
                 text = result.data[0].get('main_text', '')
                 # Truncate if too long (for display)
-                if len(text) > 500:
-                    return text[:500] + '...'
+                if len(text) > max_length:
+                    # Try to truncate at a sentence boundary
+                    truncated = text[:max_length]
+                    last_period = truncated.rfind('.')
+                    if last_period > max_length * 0.7:  # If we can find a period in the last 30%
+                        truncated = truncated[:last_period + 1]
+                    return truncated + '...'
                 return text
             return ''
         except Exception as e:

@@ -68,12 +68,21 @@ class ConstitutionRAG:
             print(f"[ERROR] Failed to connect to indexes: {e}")
             return False
 
-    def get_document_text(self, cite_id: str) -> str:
-        """Fetch full document text from Supabase"""
+    def get_document_text(self, cite_id: str, max_length: int = 1500) -> str:
+        """Fetch document text from Supabase and truncate for context window"""
         try:
             result = self.supabase.table('statutes').select('main_text').eq('cite_id', cite_id).limit(1).execute()
             if result.data and len(result.data) > 0:
-                return result.data[0].get('main_text', '')
+                text = result.data[0].get('main_text', '')
+                # Truncate if too long to fit in context window
+                if len(text) > max_length:
+                    # Try to truncate at a sentence boundary
+                    truncated = text[:max_length]
+                    last_period = truncated.rfind('.')
+                    if last_period > max_length * 0.7:  # If we can find a period in the last 30%
+                        truncated = truncated[:last_period + 1]
+                    return truncated + "\n[Text truncated for length...]"
+                return text
             return ''
         except Exception as e:
             print(f"[ERROR] Failed to fetch text for {cite_id}: {e}")
@@ -180,10 +189,11 @@ Guidelines:
 1. Base your answer ONLY on the provided legal text
 2. Cite specific sources when answering (e.g., "According to Oklahoma Constitution Article II, Section 7..." or "According to Oklahoma Statutes Title 43, Section 109...")
 3. If the provided text doesn't contain enough information to answer the question, say so
-4. Be clear, concise, and accurate
+4. Be clear, concise, and accurate - aim for 2-3 paragraphs maximum
 5. Use plain language that citizens can understand
 6. If relevant, explain the legal implications or practical meaning
-7. Distinguish between constitutional provisions and statutory law when relevant"""
+7. Distinguish between constitutional provisions and statutory law when relevant
+8. Provide a focused summary rather than exhaustive detail"""
 
         user_prompt = f"""Question: {question}
 
@@ -193,7 +203,7 @@ Relevant sections from Oklahoma law (Constitution and Statutes):
 Please answer the question based on the provided legal text. Include citations to specific sources."""
 
         try:
-            # Call GPT-4
+            # Call GPT-4 with shorter response limit
             response = self.openai_client.chat.completions.create(
                 model=model,
                 messages=[
@@ -201,7 +211,7 @@ Please answer the question based on the provided legal text. Include citations t
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.3,  # Lower temperature for more factual responses
-                max_tokens=1000
+                max_tokens=500  # Reduced from 1000 to ensure concise responses
             )
 
             answer = response.choices[0].message.content
@@ -214,9 +224,22 @@ Please answer the question based on the provided legal text. Include citations t
             }
 
         except Exception as e:
-            print(f"[ERROR] GPT generation failed: {e}")
+            error_msg = str(e)
+            print(f"[ERROR] GPT generation failed: {error_msg}")
+
+            # Handle context length errors specifically
+            if 'context_length_exceeded' in error_msg or 'maximum context length' in error_msg:
+                return {
+                    'error': 'Context too long',
+                    'answer': "The retrieved legal text is too long to process. Please try asking a more specific question or search for specific statutes instead.",
+                    'sources': context_sections,
+                    'model': model,
+                    'tokens_used': 0
+                }
+
             return {
-                'answer': f"Error generating answer: {str(e)}",
+                'error': 'Generation failed',
+                'answer': f"Unable to generate answer: {error_msg}",
                 'sources': context_sections,
                 'model': model,
                 'tokens_used': 0
