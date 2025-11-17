@@ -18,6 +18,7 @@ if os.getenv('PRODUCTION') or os.getenv('RENDER'):
 else:
     try:
         from pinecone_config import *
+        from config import SUPABASE_URL, SUPABASE_KEY
     except ImportError:
         from config_production import *
 

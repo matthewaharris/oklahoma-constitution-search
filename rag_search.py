@@ -25,6 +25,8 @@ class ConstitutionRAG:
         self.builder = ConstitutionVectorBuilder()
         self.openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
         self.supabase = None
+        self.constitution_index = None
+        self.statutes_index = None
         self.ready = False
 
     def initialize(self):
@@ -47,21 +49,23 @@ class ConstitutionRAG:
             print(f"[ERROR] Failed to connect to Supabase: {e}")
             return False
 
-        # Connect to index
+        # Connect to both indexes
         try:
-            self.builder.index = self.builder.pinecone_client.Index("oklahoma-constitution")
-            stats = self.builder.index.describe_index_stats()
+            # Constitution index
+            self.constitution_index = self.builder.pinecone_client.Index("oklahoma-constitution")
+            const_stats = self.constitution_index.describe_index_stats()
+            print(f"[OK] Connected to Constitution index with {const_stats.total_vector_count} vectors")
 
-            if stats.total_vector_count == 0:
-                print("[ERROR] No vectors in index")
-                return False
+            # Statutes index
+            self.statutes_index = self.builder.pinecone_client.Index("oklahoma-statutes")
+            stat_stats = self.statutes_index.describe_index_stats()
+            print(f"[OK] Connected to Statutes index with {stat_stats.total_vector_count} vectors")
 
-            print(f"[OK] Connected to index with {stats.total_vector_count} vectors")
             self.ready = True
             return True
 
         except Exception as e:
-            print(f"[ERROR] Failed to connect to index: {e}")
+            print(f"[ERROR] Failed to connect to indexes: {e}")
             return False
 
     def get_document_text(self, cite_id: str) -> str:
@@ -76,7 +80,7 @@ class ConstitutionRAG:
             return ''
 
     def search_relevant_sections(self, query: str, top_k: int = 5) -> List[Dict]:
-        """Search for relevant constitution sections"""
+        """Search for relevant sections from both Constitution and Statutes"""
         if not self.ready:
             if not self.initialize():
                 return []
@@ -87,27 +91,73 @@ class ConstitutionRAG:
             if not query_embedding:
                 return []
 
-            # Search
-            search_results = self.builder.index.query(
+            results = []
+
+            # Search Constitution index
+            const_results = self.constitution_index.query(
                 vector=query_embedding[0],
                 top_k=top_k,
                 include_metadata=True
             )
 
-            results = []
-            for match in search_results.matches:
+            for match in const_results.matches:
                 cite_id = match.metadata.get('cite_id', 'N/A')
+                article_num = match.metadata.get('article_number', '')
+                section_num = match.metadata.get('section_number', '')
+
+                # Build location label
+                location = "Oklahoma Constitution"
+                if article_num:
+                    location += f" - Article {article_num}"
+                    if section_num:
+                        location += f", Section {section_num}"
+
                 result = {
                     'score': match.score,
                     'cite_id': cite_id,
                     'section_name': match.metadata.get('page_title', 'Untitled'),
-                    'article_number': match.metadata.get('article_number', ''),
-                    'section_number': match.metadata.get('section_number', ''),
+                    'location': location,
+                    'document_type': 'constitution',
+                    'article_number': article_num,
+                    'section_number': section_num,
                     'text': self.get_document_text(cite_id),
                 }
                 results.append(result)
 
-            return results
+            # Search Statutes index
+            stat_results = self.statutes_index.query(
+                vector=query_embedding[0],
+                top_k=top_k,
+                include_metadata=True
+            )
+
+            for match in stat_results.matches:
+                cite_id = match.metadata.get('cite_id', 'N/A')
+                title_num = match.metadata.get('title_number', '')
+                section_num = match.metadata.get('section_number', '')
+
+                # Build location label
+                location = "Oklahoma Statutes"
+                if title_num:
+                    location += f" - Title {title_num}"
+                    if section_num:
+                        location += f", Section {section_num}"
+
+                result = {
+                    'score': match.score,
+                    'cite_id': cite_id,
+                    'section_name': match.metadata.get('page_title', 'Untitled'),
+                    'location': location,
+                    'document_type': 'statute',
+                    'title_number': title_num,
+                    'section_number': section_num,
+                    'text': self.get_document_text(cite_id),
+                }
+                results.append(result)
+
+            # Sort by relevance score and return top_k
+            results.sort(key=lambda x: x['score'], reverse=True)
+            return results[:top_k]
 
         except Exception as e:
             print(f"[ERROR] Search failed: {e}")
@@ -119,31 +169,28 @@ class ConstitutionRAG:
         # Build context from relevant sections
         context = ""
         for i, section in enumerate(context_sections, 1):
-            article_info = f"Article {section['article_number']}" if section['article_number'] else ""
-            section_info = f"Section {section['section_number']}" if section['section_number'] else ""
-            location = f"{article_info} {section_info}".strip() or "Unknown location"
-
-            context += f"\n--- Source {i}: {section['section_name']} ({location}) ---\n"
+            context += f"\n--- Source {i}: {section['section_name']} ({section['location']}) ---\n"
             context += f"{section['text']}\n"
 
         # Create the prompt
-        system_prompt = """You are an expert assistant for the Oklahoma State Constitution.
-Your role is to answer questions about the Oklahoma Constitution accurately and clearly.
+        system_prompt = """You are an expert assistant for Oklahoma law, including both the Oklahoma Constitution and Oklahoma Statutes.
+Your role is to answer questions about Oklahoma law accurately and clearly.
 
 Guidelines:
-1. Base your answer ONLY on the provided constitution text
-2. Cite specific sections when answering (e.g., "According to Article II, Section 7...")
+1. Base your answer ONLY on the provided legal text
+2. Cite specific sources when answering (e.g., "According to Oklahoma Constitution Article II, Section 7..." or "According to Oklahoma Statutes Title 43, Section 109...")
 3. If the provided text doesn't contain enough information to answer the question, say so
 4. Be clear, concise, and accurate
 5. Use plain language that citizens can understand
-6. If relevant, explain the legal implications or practical meaning"""
+6. If relevant, explain the legal implications or practical meaning
+7. Distinguish between constitutional provisions and statutory law when relevant"""
 
         user_prompt = f"""Question: {question}
 
-Relevant sections from the Oklahoma Constitution:
+Relevant sections from Oklahoma law (Constitution and Statutes):
 {context}
 
-Please answer the question based on the provided constitutional text. Include citations to specific articles and sections."""
+Please answer the question based on the provided legal text. Include citations to specific sources."""
 
         try:
             # Call GPT-4
@@ -180,7 +227,7 @@ Please answer the question based on the provided constitutional text. Include ci
         Main RAG function: Search + Generate Answer
 
         Args:
-            question: User's question about the Oklahoma Constitution
+            question: User's question about Oklahoma law (Constitution and Statutes)
             num_sources: Number of relevant sections to retrieve
             model: OpenAI model to use (gpt-4, gpt-3.5-turbo, etc.)
 
@@ -204,7 +251,7 @@ Please answer the question based on the provided constitutional text. Include ci
         if not relevant_sections:
             return {
                 'error': 'No relevant sections found',
-                'answer': 'I could not find relevant information in the Oklahoma Constitution to answer this question.',
+                'answer': 'I could not find relevant information in Oklahoma law to answer this question.',
                 'sources': []
             }
 
