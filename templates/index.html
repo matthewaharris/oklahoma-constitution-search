@@ -340,41 +340,13 @@
         </div>
 
         <div class="mode-selector">
-            <button class="mode-btn active" onclick="switchMode('search')">Search</button>
-            <button class="mode-btn" onclick="switchMode('ask')">Ask a Question</button>
+            <button class="mode-btn active" onclick="switchMode('ask')">💬 Ask a Question</button>
+            <button class="mode-btn" onclick="switchMode('search')">🔍 Search</button>
         </div>
 
         <div class="search-box">
-            <!-- Search Mode -->
-            <div id="searchMode" class="mode-content active">
-                <div class="search-input-group">
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Search Oklahoma Constitution & Statutes..."
-                        autocomplete="off"
-                    >
-                    <button class="action-button" onclick="performSearch()">Search</button>
-                </div>
-                <div class="model-selector" style="margin-bottom: 15px;">
-                    <label for="sourceSelect">Search in:</label>
-                    <select id="sourceSelect">
-                        <option value="both" selected>Constitution & Statutes</option>
-                        <option value="constitution">Constitution only</option>
-                        <option value="statutes">Statutes only (Title 10)</option>
-                    </select>
-                </div>
-                <div class="examples">
-                    <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
-                    <div class="example-tag" onclick="setSearchQuery('child custody rights')">child custody</div>
-                    <div class="example-tag" onclick="setSearchQuery('foster care regulations')">foster care</div>
-                    <div class="example-tag" onclick="setSearchQuery('voting rights')">voting rights</div>
-                    <div class="example-tag" onclick="setSearchQuery('separation of powers')">separation of powers</div>
-                </div>
-            </div>
-
-            <!-- Ask Mode -->
-            <div id="askMode" class="mode-content">
+            <!-- Ask Mode (Now Default) -->
+            <div id="askMode" class="mode-content active">
                 <div class="search-input-group">
                     <input
                         type="text"
@@ -389,13 +361,34 @@
                     <div class="example-tag" onclick="setQuestion('What are child custody laws in Oklahoma?')">child custody</div>
                     <div class="example-tag" onclick="setQuestion('How does Oklahoma handle foster care?')">foster care</div>
                     <div class="example-tag" onclick="setQuestion('What are the voting rights in Oklahoma?')">voting rights</div>
+                    <div class="example-tag" onclick="setQuestion('What powers does the Oklahoma governor have?')">governor powers</div>
                 </div>
                 <div class="model-selector">
                     <label for="modelSelect">AI Model:</label>
                     <select id="modelSelect">
-                        <option value="gpt-3.5-turbo" selected>GPT-3.5 Turbo (Faster, cheaper)</option>
-                        <option value="gpt-4">GPT-4 (Better quality, slower)</option>
+                        <option value="gpt-4" selected>GPT-4 (Best quality)</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster)</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Search Mode -->
+            <div id="searchMode" class="mode-content">
+                <div class="search-input-group">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search Oklahoma Constitution & Statutes..."
+                        autocomplete="off"
+                    >
+                    <button class="action-button" onclick="performSearch()">Search</button>
+                </div>
+                <div class="examples">
+                    <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
+                    <div class="example-tag" onclick="setSearchQuery('child custody rights')">child custody</div>
+                    <div class="example-tag" onclick="setSearchQuery('foster care regulations')">foster care</div>
+                    <div class="example-tag" onclick="setSearchQuery('voting rights')">voting rights</div>
+                    <div class="example-tag" onclick="setSearchQuery('separation of powers')">separation of powers</div>
                 </div>
             </div>
         </div>
@@ -419,7 +412,7 @@
     </div>
 
     <script>
-        let currentMode = 'search';
+        let currentMode = 'ask';
 
         function switchMode(mode) {
             currentMode = mode;
@@ -460,7 +453,7 @@
 
         async function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
-            const source = document.getElementById('sourceSelect').value;
+            const source = 'both'; // Always search both Constitution and Statutes
 
             if (!query) {
                 showError('Please enter a search query');
@@ -609,7 +602,7 @@
         }
 
         // Focus on input on page load
-        document.getElementById('searchInput').focus();
+        document.getElementById('questionInput').focus();
     </script>
 </body>
 </html>
