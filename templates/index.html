@@ -309,6 +309,62 @@
             border-top: 1px solid #e0e0e0;
         }
 
+        .feedback-section {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+            text-align: center;
+        }
+
+        .feedback-prompt {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .feedback-btn {
+            padding: 10px 25px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .feedback-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .feedback-btn.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .feedback-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .feedback-thank-you {
+            color: #4CAF50;
+            font-weight: 600;
+            margin-top: 10px;
+            display: none;
+        }
+
         @media (max-width: 600px) {
             .header h1 {
                 font-size: 1.8em;
@@ -543,8 +599,19 @@
             showResults();
         }
 
+        // Store last query data for feedback
+        let lastQueryData = null;
+
         function displayAnswer(data) {
             document.getElementById('resultHeader').textContent = `Answer to: "${data.question}"`;
+
+            // Store for feedback
+            lastQueryData = {
+                question: data.question,
+                answer_type: 'ask',
+                cite_ids: data.sources.map(s => s.cite_id),
+                model: data.model
+            };
 
             const sourcesHtml = data.sources.map((source, index) => `
                 <div class="result-card">
@@ -563,6 +630,19 @@
                     <div class="answer-header">Answer:</div>
                     <div class="answer-text">${escapeHtml(data.answer)}</div>
                     <div class="token-info">Generated using ${data.model} • ${data.tokens_used} tokens used</div>
+
+                    <div class="feedback-section" id="feedbackSection">
+                        <div class="feedback-prompt">Was this answer helpful?</div>
+                        <div class="feedback-buttons">
+                            <button class="feedback-btn" onclick="submitFeedback(1)" id="thumbsUp">
+                                👍 Yes, helpful
+                            </button>
+                            <button class="feedback-btn" onclick="submitFeedback(-1)" id="thumbsDown">
+                                👎 Not helpful
+                            </button>
+                        </div>
+                        <div class="feedback-thank-you" id="thankYou">Thanks for your feedback!</div>
+                    </div>
                 </div>
                 <div class="sources-header">Sources Referenced:</div>
                 ${sourcesHtml}
@@ -599,6 +679,78 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Generate a simple session ID for tracking
+        function getSessionId() {
+            let sessionId = localStorage.getItem('session_id');
+            if (!sessionId) {
+                sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('session_id', sessionId);
+            }
+            return sessionId;
+        }
+
+        // Submit user feedback
+        async function submitFeedback(rating) {
+            if (!lastQueryData) {
+                console.error('No query data available for feedback');
+                return;
+            }
+
+            // Disable buttons to prevent double-submission
+            const thumbsUp = document.getElementById('thumbsUp');
+            const thumbsDown = document.getElementById('thumbsDown');
+            if (thumbsUp) thumbsUp.disabled = true;
+            if (thumbsDown) thumbsDown.disabled = true;
+
+            // Highlight selected button
+            if (rating === 1 && thumbsUp) {
+                thumbsUp.classList.add('selected');
+            } else if (rating === -1 && thumbsDown) {
+                thumbsDown.classList.add('selected');
+            }
+
+            try {
+                const response = await fetch('/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: getSessionId(),
+                        question: lastQueryData.question,
+                        answer_type: lastQueryData.answer_type,
+                        cite_ids: lastQueryData.cite_ids,
+                        rating: rating,
+                        model_used: lastQueryData.model
+                    }),
+                });
+
+                if (response.ok) {
+                    // Show thank you message
+                    const thankYou = document.getElementById('thankYou');
+                    if (thankYou) {
+                        thankYou.style.display = 'block';
+                    }
+
+                    // Hide feedback buttons after a moment
+                    setTimeout(() => {
+                        const feedbackButtons = document.querySelector('.feedback-buttons');
+                        const feedbackPrompt = document.querySelector('.feedback-prompt');
+                        if (feedbackButtons) feedbackButtons.style.display = 'none';
+                        if (feedbackPrompt) feedbackPrompt.style.display = 'none';
+                    }, 1500);
+                } else {
+                    console.error('Failed to submit feedback');
+                    // Re-enable buttons on error
+                    if (thumbsUp) thumbsUp.disabled = false;
+                    if (thumbsDown) thumbsDown.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+                // Re-enable buttons on error
+                if (thumbsUp) thumbsUp.disabled = false;
+                if (thumbsDown) thumbsDown.disabled = false;
+            }
         }
 
         // Focus on input on page load

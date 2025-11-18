@@ -447,6 +447,58 @@ def diagnose():
             'traceback': traceback.format_exc()
         }), 500
 
+@app.route('/feedback', methods=['POST'])
+@limiter.limit("10 per minute")
+def submit_feedback():
+    """Store user feedback for answers and searches"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request'}), 400
+
+        # Validate required fields
+        required_fields = ['session_id', 'question', 'answer_type', 'cite_ids', 'rating']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Validate rating
+        rating = data.get('rating')
+        if rating not in [-1, 1]:
+            return jsonify({'error': 'Rating must be -1 or 1'}), 400
+
+        # Validate answer_type
+        answer_type = data.get('answer_type')
+        if answer_type not in ['ask', 'search']:
+            return jsonify({'error': 'answer_type must be "ask" or "search"'}), 400
+
+        # Store feedback in Supabase
+        from config_production import SUPABASE_URL, SUPABASE_KEY
+        from supabase import create_client
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+        feedback_data = {
+            'session_id': sanitize_input(data.get('session_id'), max_length=100),
+            'question': sanitize_input(data.get('question'), max_length=500),
+            'answer_type': answer_type,
+            'cite_ids': data.get('cite_ids'),  # PostgreSQL array
+            'rating': rating,
+            'feedback_comment': sanitize_input(data.get('feedback_comment', ''), max_length=500) if data.get('feedback_comment') else None,
+            'model_used': data.get('model_used')
+        }
+
+        result = supabase.table('user_feedback').insert(feedback_data).execute()
+
+        print(f"[FEEDBACK] Stored feedback: rating={rating}, question={data.get('question')[:50]}...")
+
+        return jsonify({'success': True, 'message': 'Thank you for your feedback!'})
+
+    except Exception as e:
+        print(f"[FEEDBACK] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to submit feedback'}), 500
+
 if __name__ == '__main__':
     print("=" * 60)
     print("Oklahoma Constitution Search - Web Interface")
