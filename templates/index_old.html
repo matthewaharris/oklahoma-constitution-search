@@ -3,28 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oklahoma Legal AI - Constitutional & Statutory Research</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Oklahoma Legal Search - Constitution & Statutes</title>
     <style>
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #818cf8;
-            --secondary: #8b5cf6;
-            --background: #0f172a;
-            --surface: #1e293b;
-            --surface-light: #334155;
-            --text-primary: #f1f5f9;
-            --text-secondary: #cbd5e1;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --error: #ef4444;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -32,122 +12,69 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--background);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            background-image:
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
         }
 
-        /* Header */
         .header {
             text-align: center;
-            padding: 40px 20px 30px;
-        }
-
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
+            color: white;
+            padding: 40px 20px 20px;
         }
 
         .header h1 {
             font-size: 2.5em;
+            margin-bottom: 10px;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary-light), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
         }
 
-        .header .subtitle {
+        .header p {
             font-size: 1.1em;
-            color: var(--text-secondary);
-            font-weight: 400;
+            opacity: 0.9;
         }
 
-        .header .tagline {
-            font-size: 0.9em;
-            color: var(--text-muted);
-            margin-top: 8px;
-        }
-
-        /* Mode Selector */
         .mode-selector {
             display: flex;
             justify-content: center;
-            gap: 12px;
-            margin: 30px 0;
+            gap: 10px;
+            margin: 20px 0;
         }
 
         .mode-btn {
-            padding: 12px 32px;
-            background: var(--surface);
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            font-size: 15px;
+            padding: 12px 30px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mode-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            opacity: 0;
-            transition: opacity 0.3s;
+            transition: all 0.3s;
         }
 
         .mode-btn:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .mode-btn.active {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+            background: white;
+            color: #667eea;
+            border-color: white;
         }
 
-        /* Search Box */
         .search-box {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 32px;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             margin-bottom: 30px;
-            backdrop-filter: blur(10px);
         }
 
         .mode-content {
@@ -160,48 +87,39 @@
 
         .search-input-group {
             display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         #searchInput, #questionInput {
             flex: 1;
-            padding: 16px 20px;
-            font-size: 15px;
-            background: var(--background);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text-primary);
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             outline: none;
-            transition: all 0.3s;
-            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s;
         }
 
         #searchInput:focus, #questionInput:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        #searchInput::placeholder, #questionInput::placeholder {
-            color: var(--text-muted);
+            border-color: #667eea;
         }
 
         .action-button {
-            padding: 16px 36px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 15px 35px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 15px;
+            border-radius: 8px;
+            font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .action-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
 
         .action-button:active {
@@ -209,93 +127,66 @@
         }
 
         .action-button:disabled {
-            opacity: 0.5;
+            opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* Examples */
         .examples {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .examples-label {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .example-tag {
-            padding: 8px 16px;
-            background: var(--background);
-            border: 1px solid var(--border);
+            padding: 8px 15px;
+            background: #f0f0f0;
             border-radius: 20px;
-            font-size: 13px;
-            color: var(--text-secondary);
+            font-size: 14px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.2s;
         }
 
         .example-tag:hover {
-            background: var(--surface-light);
-            border-color: var(--primary);
-            color: var(--primary-light);
+            background: #e0e0e0;
         }
 
-        /* Model Selector */
         .model-selector {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
         }
 
         .model-selector label {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 14px;
+            color: #666;
+            margin-right: 10px;
         }
 
         .model-selector select {
-            padding: 10px 16px;
-            background: var(--background);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
             font-size: 14px;
             cursor: pointer;
-            outline: none;
-            font-family: 'Inter', sans-serif;
         }
 
-        .model-selector select:hover {
-            border-color: var(--primary);
-        }
-
-        /* Loading */
         .loading {
             text-align: center;
-            padding: 60px;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
             display: none;
         }
 
         .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid var(--surface-light);
-            border-top: 4px solid var(--primary);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
             border-radius: 50%;
+            width: 40px;
+            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 15px;
         }
 
         @keyframes spin {
@@ -303,193 +194,162 @@
             100% { transform: rotate(360deg); }
         }
 
-        .loading-text {
-            color: var(--text-secondary);
-            font-size: 16px;
-            font-weight: 500;
-        }
-
-        /* Results */
         .results {
             display: none;
         }
 
         .result-header {
-            color: var(--text-primary);
-            margin-bottom: 24px;
+            color: white;
+            margin-bottom: 20px;
             font-size: 18px;
-            font-weight: 600;
         }
 
-        /* Answer Card */
         .answer-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 32px;
-            margin-bottom: 24px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         .answer-header {
-            font-size: 14px;
+            font-size: 1.3em;
             font-weight: 600;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .answer-header::before {
-            content: '✨';
-            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 15px;
         }
 
         .answer-text {
-            color: var(--text-primary);
+            color: #333;
             line-height: 1.8;
             font-size: 16px;
             white-space: pre-wrap;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .sources-header {
-            font-size: 16px;
+            font-size: 1.1em;
             font-weight: 600;
-            color: var(--text-primary);
-            margin: 32px 0 20px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            color: #333;
+            margin-top: 25px;
+            margin-bottom: 15px;
         }
 
-        .sources-header::before {
-            content: '📚';
-            font-size: 18px;
-        }
-
-        /* Result Card */
         .result-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
+            background: white;
             border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 16px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .result-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.15);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
         }
 
         .result-title {
-            font-size: 17px;
+            font-size: 1.4em;
             font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 12px;
-            line-height: 1.4;
+            color: #333;
+            margin-bottom: 10px;
         }
 
         .result-meta {
             display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
+            gap: 15px;
+            margin-bottom: 15px;
             flex-wrap: wrap;
         }
 
         .meta-tag {
-            padding: 6px 12px;
-            background: var(--background);
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-weight: 500;
+            padding: 5px 12px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #666;
         }
 
         .score-tag {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-        }
-
-        .oscn-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: var(--background);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--primary-light);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .oscn-link:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .oscn-link::after {
-            content: '→';
+            font-weight: 600;
         }
 
         .result-text {
-            color: var(--text-secondary);
-            line-height: 1.7;
+            color: #555;
+            line-height: 1.6;
             font-size: 15px;
         }
 
-        /* Feedback */
+        .error {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            color: #d32f2f;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 30px 20px;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        .token-info {
+            font-size: 13px;
+            color: #999;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
         .feedback-section {
-            margin-top: 28px;
-            padding-top: 24px;
-            border-top: 1px solid var(--border);
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
             text-align: center;
         }
 
         .feedback-prompt {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 12px;
             font-weight: 500;
         }
 
         .feedback-buttons {
             display: flex;
             justify-content: center;
-            gap: 12px;
+            gap: 15px;
         }
 
         .feedback-btn {
-            padding: 10px 24px;
-            font-size: 14px;
-            border: 1px solid var(--border);
+            padding: 10px 25px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
             border-radius: 8px;
-            background: var(--background);
-            color: var(--text-secondary);
+            background: white;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 500;
         }
 
         .feedback-btn:hover {
-            border-color: var(--primary);
-            background: var(--surface-light);
+            border-color: #667eea;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
         }
 
         .feedback-btn.selected {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-color: transparent;
+            border-color: #667eea;
         }
 
         .feedback-btn:disabled {
@@ -499,52 +359,12 @@
         }
 
         .feedback-thank-you {
-            color: var(--success);
+            color: #4CAF50;
             font-weight: 600;
-            margin-top: 12px;
+            margin-top: 10px;
             display: none;
         }
 
-        /* Token Info */
-        .token-info {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        /* Error */
-        .error {
-            background: var(--surface);
-            border: 1px solid var(--error);
-            border-radius: 12px;
-            padding: 24px;
-            text-align: center;
-            color: var(--error);
-            display: none;
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.1);
-        }
-
-        /* Footer */
-        .footer {
-            text-align: center;
-            color: var(--text-muted);
-            padding: 40px 20px;
-            font-size: 13px;
-            line-height: 1.8;
-        }
-
-        .footer a {
-            color: var(--primary-light);
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
-
-        /* Mobile Responsiveness */
         @media (max-width: 600px) {
             .header h1 {
                 font-size: 1.8em;
@@ -565,59 +385,42 @@
             .mode-btn {
                 width: 100%;
             }
-
-            .examples {
-                justify-content: center;
-            }
-
-            .result-meta {
-                gap: 8px;
-            }
-
-            .meta-tag, .oscn-link {
-                font-size: 11px;
-                padding: 5px 10px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">
-                <div class="logo-icon">⚖️</div>
-            </div>
-            <h1>Oklahoma Legal AI</h1>
-            <p class="subtitle">AI-Powered Constitutional & Statutory Research</p>
-            <p class="tagline">Powered by GPT-4 • Semantic Search • 43,000+ Indexed Statutes</p>
+            <h1>Oklahoma Legal Search</h1>
+            <p>AI-powered search of Oklahoma Constitution & Statutes</p>
         </div>
 
         <div class="mode-selector">
             <button class="mode-btn active" onclick="switchMode('ask')">💬 Ask a Question</button>
-            <button class="mode-btn" onclick="switchMode('search')">🔍 Search Documents</button>
+            <button class="mode-btn" onclick="switchMode('search')">🔍 Search</button>
         </div>
 
         <div class="search-box">
-            <!-- Ask Mode (Default) -->
+            <!-- Ask Mode (Now Default) -->
             <div id="askMode" class="mode-content active">
                 <div class="search-input-group">
                     <input
                         type="text"
                         id="questionInput"
-                        placeholder="Ask any question about Oklahoma law..."
+                        placeholder="Ask a question about Oklahoma law..."
                         autocomplete="off"
                     >
                     <button class="action-button" onclick="askQuestion()">Ask</button>
                 </div>
                 <div class="examples">
-                    <span class="examples-label">Examples</span>
+                    <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
                     <div class="example-tag" onclick="setQuestion('What are child custody laws in Oklahoma?')">child custody</div>
                     <div class="example-tag" onclick="setQuestion('How does Oklahoma handle foster care?')">foster care</div>
                     <div class="example-tag" onclick="setQuestion('What are the voting rights in Oklahoma?')">voting rights</div>
                     <div class="example-tag" onclick="setQuestion('What powers does the Oklahoma governor have?')">governor powers</div>
                 </div>
                 <div class="model-selector">
-                    <label for="modelSelect">AI Model</label>
+                    <label for="modelSelect">AI Model:</label>
                     <select id="modelSelect">
                         <option value="gpt-4" selected>GPT-4 (Best quality)</option>
                         <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster)</option>
@@ -637,7 +440,7 @@
                     <button class="action-button" onclick="performSearch()">Search</button>
                 </div>
                 <div class="examples">
-                    <span class="examples-label">Examples</span>
+                    <span style="font-size: 14px; color: #666; margin-right: 10px;">Try:</span>
                     <div class="example-tag" onclick="setSearchQuery('child custody rights')">child custody</div>
                     <div class="example-tag" onclick="setSearchQuery('foster care regulations')">foster care</div>
                     <div class="example-tag" onclick="setSearchQuery('voting rights')">voting rights</div>
@@ -648,7 +451,7 @@
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <div class="loading-text" id="loadingText">Processing...</div>
+            <div id="loadingText">Searching...</div>
         </div>
 
         <div class="error" id="error"></div>
@@ -659,15 +462,13 @@
         </div>
 
         <div class="footer">
-            <p>Data sourced from the <a href="https://www.oscn.net/" target="_blank">Oklahoma State Courts Network (OSCN)</a></p>
-            <p>Built with OpenAI GPT-4, Pinecone Vector Database & Supabase</p>
-            <p style="margin-top: 12px; font-size: 12px;">⚠️ For informational purposes only. Consult a licensed attorney for legal advice.</p>
+            <p>Powered by OpenAI GPT-4 & Pinecone Vector Database</p>
+            <p style="margin-top: 10px;">Data source: Oklahoma State Courts Network (OSCN)</p>
         </div>
     </div>
 
     <script>
         let currentMode = 'ask';
-        let lastQueryData = null;
 
         function switchMode(mode) {
             currentMode = mode;
@@ -701,14 +502,6 @@
             document.getElementById('questionInput').value = question;
         }
 
-        // Helper function to generate OSCN URL
-        function generateOSCNUrl(titleNumber, sectionNumber) {
-            if (!titleNumber || !sectionNumber) return null;
-            // OSCN URL format: https://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=XXXXX
-            // For now, we'll use a simpler approach with title and section
-            return `https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKST${titleNumber}&level=1`;
-        }
-
         // Search functionality
         document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') performSearch();
@@ -716,7 +509,7 @@
 
         async function performSearch() {
             const query = document.getElementById('searchInput').value.trim();
-            const source = 'both'; // Always search both
+            const source = 'both'; // Always search both Constitution and Statutes
 
             if (!query) {
                 showError('Please enter a search query');
@@ -788,27 +581,26 @@
         function displaySearchResults(resultsData, query) {
             document.getElementById('resultHeader').textContent = `Found ${resultsData.length} results for "${query}"`;
 
-            document.getElementById('resultsList').innerHTML = resultsData.map((result, index) => {
-                const oscnUrl = result.title_number && result.section_number
-                    ? generateOSCNUrl(result.title_number, result.section_number)
-                    : null;
-
-                return `
+            document.getElementById('resultsList').innerHTML = resultsData.map((result, index) => `
                 <div class="result-card">
                     <div class="result-title">${index + 1}. ${escapeHtml(result.section_name)}</div>
                     <div class="result-meta">
                         <span class="meta-tag score-tag">${result.score}% Match</span>
+                        <span class="meta-tag" style="background: ${result.type === 'constitution' ? '#4CAF50' : '#2196F3'}; color: white;">${escapeHtml(result.source)}</span>
+                        ${result.article_number ? `<span class="meta-tag">Article ${escapeHtml(result.article_number)}</span>` : ''}
                         ${result.title_number ? `<span class="meta-tag">Title ${escapeHtml(result.title_number)}</span>` : ''}
                         ${result.section_number ? `<span class="meta-tag">Section ${escapeHtml(result.section_number)}</span>` : ''}
-                        ${result.cite_id ? `<span class="meta-tag">ID: ${escapeHtml(result.cite_id)}</span>` : ''}
-                        ${oscnUrl ? `<a href="${oscnUrl}" target="_blank" class="oscn-link">View on OSCN</a>` : ''}
+                        <span class="meta-tag">ID: ${escapeHtml(result.cite_id)}</span>
                     </div>
                     <div class="result-text">${escapeHtml(result.text)}</div>
                 </div>
-            `}).join('');
+            `).join('');
 
             showResults();
         }
+
+        // Store last query data for feedback
+        let lastQueryData = null;
 
         function displayAnswer(data) {
             document.getElementById('resultHeader').textContent = `Answer to: "${data.question}"`;
@@ -821,27 +613,21 @@
                 model: data.model
             };
 
-            const sourcesHtml = data.sources.map((source, index) => {
-                const oscnUrl = source.title_number && source.section_number
-                    ? generateOSCNUrl(source.title_number, source.section_number)
-                    : null;
-
-                return `
+            const sourcesHtml = data.sources.map((source, index) => `
                 <div class="result-card">
                     <div class="result-title">Source ${index + 1}: ${escapeHtml(source.section_name)}</div>
                     <div class="result-meta">
                         <span class="meta-tag score-tag">${Math.round(source.score * 100)}% Relevant</span>
-                        ${source.title_number ? `<span class="meta-tag">Title ${escapeHtml(source.title_number)}</span>` : ''}
+                        ${source.article_number ? `<span class="meta-tag">Article ${escapeHtml(source.article_number)}</span>` : ''}
                         ${source.section_number ? `<span class="meta-tag">Section ${escapeHtml(source.section_number)}</span>` : ''}
-                        ${oscnUrl ? `<a href="${oscnUrl}" target="_blank" class="oscn-link">View on OSCN</a>` : ''}
                     </div>
                     <div class="result-text">${escapeHtml(source.text)}</div>
                 </div>
-            `}).join('');
+            `).join('');
 
             document.getElementById('resultsList').innerHTML = `
                 <div class="answer-card">
-                    <div class="answer-header">AI-Generated Answer</div>
+                    <div class="answer-header">Answer:</div>
                     <div class="answer-text">${escapeHtml(data.answer)}</div>
                     <div class="token-info">Generated using ${data.model} • ${data.tokens_used} tokens used</div>
 
@@ -858,7 +644,7 @@
                         <div class="feedback-thank-you" id="thankYou">Thanks for your feedback!</div>
                     </div>
                 </div>
-                <div class="sources-header">Referenced Sources</div>
+                <div class="sources-header">Sources Referenced:</div>
                 ${sourcesHtml}
             `;
 
