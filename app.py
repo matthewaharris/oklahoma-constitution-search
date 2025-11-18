@@ -364,6 +364,89 @@ def health():
     else:
         return jsonify({'status': 'unhealthy', 'ready': False}), 503
 
+@app.route('/diagnose', methods=['POST'])
+def diagnose():
+    """Diagnostic endpoint to debug production issues - returns raw Pinecone results"""
+    try:
+        data = request.get_json()
+        query = data.get('query', 'What are child custody laws in Oklahoma?')
+
+        # Initialize if needed
+        if not search_system.ready:
+            if not search_system.initialize():
+                return jsonify({'error': 'Service unavailable'}), 503
+
+        # Create embedding for the query
+        print(f"[DIAGNOSE] Creating embedding for: {query}")
+        query_embedding = search_system.builder.create_embeddings([query])
+
+        if not query_embedding:
+            return jsonify({'error': 'Failed to create embedding'}), 500
+
+        # Query Pinecone statutes index directly
+        print(f"[DIAGNOSE] Querying Pinecone statutes index...")
+        stat_results = search_system.statutes_index.query(
+            vector=query_embedding[0],
+            top_k=10,
+            include_metadata=True
+        )
+
+        # Extract cite_ids and metadata
+        pinecone_results = []
+        cite_ids = []
+        for match in stat_results.matches:
+            cite_id = match.metadata.get('cite_id', 'N/A')
+            cite_ids.append(cite_id)
+            pinecone_results.append({
+                'cite_id': cite_id,
+                'score': float(match.score),
+                'title_number': match.metadata.get('title_number', 'N/A'),
+                'section_number': match.metadata.get('section_number', 'N/A'),
+                'page_title': match.metadata.get('page_title', 'Untitled')[:100]
+            })
+
+        print(f"[DIAGNOSE] Pinecone returned cite_ids: {cite_ids}")
+
+        # Try to fetch from Supabase
+        supabase_results = []
+        try:
+            from config_production import SUPABASE_URL, SUPABASE_KEY
+            from supabase import create_client
+            supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+            for cite_id in cite_ids[:5]:  # Only fetch first 5
+                result = supabase.table('statutes').select(
+                    'cite_id, page_title, title_number, section_number'
+                ).eq('cite_id', cite_id).limit(1).execute()
+
+                if result.data and len(result.data) > 0:
+                    supabase_results.append(result.data[0])
+                else:
+                    supabase_results.append({'cite_id': cite_id, 'status': 'NOT_FOUND'})
+        except Exception as e:
+            print(f"[DIAGNOSE] Supabase fetch error: {e}")
+            supabase_results = [{'error': str(e)}]
+
+        # Return diagnostic information
+        return jsonify({
+            'query': query,
+            'environment': 'production' if os.getenv('PRODUCTION') else 'development',
+            'pinecone_api_key_prefix': PINECONE_API_KEY[:15] + '...',
+            'pinecone_results': pinecone_results,
+            'cite_ids_from_pinecone': cite_ids,
+            'supabase_results': supabase_results,
+            'embedding_model': EMBEDDING_MODEL
+        })
+
+    except Exception as e:
+        print(f"[DIAGNOSE] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 if __name__ == '__main__':
     print("=" * 60)
     print("Oklahoma Constitution Search - Web Interface")
