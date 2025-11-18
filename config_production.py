@@ -13,7 +13,7 @@ METRIC = 'cosine'
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-EMBEDDING_MODEL = 'text-embedding-ada-002'
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')  # Read from env var, default to text-embedding-3-small
 
 # Supabase Configuration
 SUPABASE_URL = os.getenv('SUPABASE_URL')
