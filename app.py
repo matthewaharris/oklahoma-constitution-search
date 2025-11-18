@@ -32,7 +32,9 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/search": {"origins": "*"},
     r"/ask": {"origins": "*"},
-    r"/health": {"origins": "*"}
+    r"/health": {"origins": "*"},
+    r"/feedback": {"origins": "*"},
+    r"/general-feedback": {"origins": "*"}
 })
 
 # Security: Rate limiting to prevent abuse
@@ -472,10 +474,10 @@ def submit_feedback():
         if answer_type not in ['ask', 'search']:
             return jsonify({'error': 'answer_type must be "ask" or "search"'}), 400
 
-        # Store feedback in Supabase
-        from config_production import SUPABASE_URL, SUPABASE_KEY
-        from supabase import create_client
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        # Use the already-initialized Supabase client
+        supabase = search_system.supabase
+        if not supabase:
+            return jsonify({'error': 'Database connection not available'}), 503
 
         feedback_data = {
             'session_id': sanitize_input(data.get('session_id'), max_length=100),
@@ -495,6 +497,53 @@ def submit_feedback():
 
     except Exception as e:
         print(f"[FEEDBACK] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Failed to submit feedback'}), 500
+
+@app.route('/general-feedback', methods=['POST'])
+@limiter.limit("10 per minute")
+def submit_general_feedback():
+    """Store general user feedback and feature requests"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request'}), 400
+
+        # Validate required fields
+        required_fields = ['session_id', 'feedback_type', 'subject', 'message']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Validate feedback_type
+        feedback_type = data.get('feedback_type')
+        valid_types = ['feature_request', 'bug_report', 'general_feedback', 'improvement']
+        if feedback_type not in valid_types:
+            return jsonify({'error': f'feedback_type must be one of: {", ".join(valid_types)}'}), 400
+
+        # Use the already-initialized Supabase client
+        supabase = search_system.supabase
+        if not supabase:
+            return jsonify({'error': 'Database connection not available'}), 503
+
+        feedback_data = {
+            'session_id': sanitize_input(data.get('session_id'), max_length=100),
+            'feedback_type': feedback_type,
+            'subject': sanitize_input(data.get('subject'), max_length=200),
+            'message': sanitize_input(data.get('message'), max_length=2000),
+            'email': sanitize_input(data.get('email', ''), max_length=100) if data.get('email') else None,
+            'user_agent': sanitize_input(data.get('user_agent', ''), max_length=500) if data.get('user_agent') else None
+        }
+
+        result = supabase.table('general_feedback').insert(feedback_data).execute()
+
+        print(f"[GENERAL FEEDBACK] Stored: type={feedback_type}, subject={data.get('subject')[:50]}...")
+
+        return jsonify({'success': True, 'message': 'Thank you for your feedback!'})
+
+    except Exception as e:
+        print(f"[GENERAL FEEDBACK] Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Failed to submit feedback'}), 500
