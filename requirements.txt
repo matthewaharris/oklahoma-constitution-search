@@ -21,3 +21,6 @@ PyPDF2==3.0.1
 
 # Utilities
 python-dotenv==1.0.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
