@@ -191,26 +191,51 @@ class ConstitutionRAG:
             context += f"\n--- Source {i}: {section['section_name']} ({section['location']}) ---\n"
             context += f"{section['text']}\n"
 
-        # Create the prompt
-        system_prompt = """You are an expert assistant for Oklahoma law, including both the Oklahoma Constitution and Oklahoma Statutes.
+        # Check relevance scores - if highest score is below 0.5, the question might not be about OK law
+        max_score = max([s['score'] for s in context_sections]) if context_sections else 0
+        is_likely_ok_law_question = max_score > 0.5
+
+        # Create the prompt - different approach based on relevance
+        if is_likely_ok_law_question:
+            # High relevance - stick to the legal documents
+            system_prompt = """You are an expert assistant for Oklahoma law, including both the Oklahoma Constitution and Oklahoma Statutes.
 Your role is to answer questions about Oklahoma law accurately and clearly.
 
 Guidelines:
-1. Base your answer ONLY on the provided legal text
+1. Base your answer PRIMARILY on the provided legal text
 2. Cite specific sources when answering (e.g., "According to Oklahoma Constitution Article II, Section 7..." or "According to Oklahoma Statutes Title 43, Section 109...")
-3. If the provided text doesn't contain enough information to answer the question, say so
+3. If the provided text doesn't contain enough information to answer the question fully, you may supplement with general legal knowledge, but clearly distinguish between what's in the source documents and general information
 4. Be clear, concise, and accurate - aim for 2-3 paragraphs maximum
 5. Use plain language that citizens can understand
 6. If relevant, explain the legal implications or practical meaning
 7. Distinguish between constitutional provisions and statutory law when relevant
 8. Provide a focused summary rather than exhaustive detail"""
 
-        user_prompt = f"""Question: {question}
+            user_prompt = f"""Question: {question}
 
 Relevant sections from Oklahoma law (Constitution and Statutes):
 {context}
 
 Please answer the question based on the provided legal text. Include citations to specific sources."""
+
+        else:
+            # Low relevance - question might not be about OK law, allow general knowledge
+            system_prompt = """You are a helpful AI assistant with knowledge of Oklahoma law and general information.
+
+When answering questions:
+1. If the question is about Oklahoma law and relevant legal text is provided, base your answer on that text and cite sources
+2. If the question is NOT about Oklahoma law (e.g., general knowledge questions), you may answer using your general knowledge
+3. If legal sources are provided but not very relevant to the question, acknowledge this and provide a helpful answer anyway
+4. Be clear, concise, and accurate
+5. Use plain language that anyone can understand"""
+
+            user_prompt = f"""Question: {question}
+
+Note: I searched Oklahoma legal documents but found limited relevance (best match score: {max_score:.2f}).
+Here are the closest matches found:
+{context}
+
+Please answer the question. If it's about Oklahoma law, use the sources above. If it's a general question, you may use your general knowledge to help the user."""
 
         try:
             # Call GPT-4 with shorter response limit
