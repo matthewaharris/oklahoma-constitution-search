@@ -70,6 +70,8 @@ class SearchSystem:
         self.builder = ConstitutionVectorBuilder()
         self.constitution_index = None
         self.statutes_index = None
+        self.case_law_index = None
+        self.ag_opinions_index = None
         self.supabase = None
         self.ready = False
 
@@ -93,7 +95,7 @@ class SearchSystem:
             print(f"[ERROR] Failed to connect to Supabase: {e}")
             return False
 
-        # Connect to both Pinecone indexes
+        # Connect to all Pinecone indexes
         try:
             # Constitution index
             self.constitution_index = self.builder.pinecone_client.Index("oklahoma-constitution")
@@ -104,6 +106,22 @@ class SearchSystem:
             self.statutes_index = self.builder.pinecone_client.Index("oklahoma-statutes")
             stat_stats = self.statutes_index.describe_index_stats()
             print(f"[OK] Connected to Statutes index with {stat_stats.total_vector_count} vectors")
+
+            # Case law index
+            try:
+                self.case_law_index = self.builder.pinecone_client.Index("oklahoma-case-law")
+                case_stats = self.case_law_index.describe_index_stats()
+                print(f"[OK] Connected to Case Law index with {case_stats.total_vector_count} vectors")
+            except Exception as e:
+                print(f"[WARNING] Case Law index not available: {e}")
+
+            # AG opinions index
+            try:
+                self.ag_opinions_index = self.builder.pinecone_client.Index("oklahoma-ag-opinions")
+                ag_stats = self.ag_opinions_index.describe_index_stats()
+                print(f"[OK] Connected to AG Opinions index with {ag_stats.total_vector_count} vectors")
+            except Exception as e:
+                print(f"[WARNING] AG Opinions index not available: {e}")
 
             self.ready = True
             return True
@@ -132,13 +150,51 @@ class SearchSystem:
             print(f"[ERROR] Failed to fetch text for {cite_id}: {e}")
             return ''
 
-    def search(self, query: str, source: str = 'both', top_k: int = 5) -> List[Dict]:
+    def get_case_text(self, case_id: int, max_length: int = 800) -> str:
+        """Fetch case opinion text from Supabase and truncate for display"""
+        try:
+            result = self.supabase.table('oklahoma_cases').select('opinion_text').eq('id', case_id).limit(1).execute()
+            if result.data and len(result.data) > 0:
+                text = result.data[0].get('opinion_text', '')
+                # Truncate if too long (for display)
+                if len(text) > max_length:
+                    truncated = text[:max_length]
+                    last_period = truncated.rfind('.')
+                    if last_period > max_length * 0.7:
+                        truncated = truncated[:last_period + 1]
+                    return truncated + '...'
+                return text
+            return ''
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch case text for {case_id}: {e}")
+            return ''
+
+    def get_ag_opinion_text(self, opinion_id: int, max_length: int = 800) -> str:
+        """Fetch AG opinion text from Supabase and truncate for display"""
+        try:
+            result = self.supabase.table('attorney_general_opinions').select('opinion_text').eq('id', opinion_id).limit(1).execute()
+            if result.data and len(result.data) > 0:
+                text = result.data[0].get('opinion_text', '')
+                # Truncate if too long (for display)
+                if len(text) > max_length:
+                    truncated = text[:max_length]
+                    last_period = truncated.rfind('.')
+                    if last_period > max_length * 0.7:
+                        truncated = truncated[:last_period + 1]
+                    return truncated + '...'
+                return text
+            return ''
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch AG opinion text for {opinion_id}: {e}")
+            return ''
+
+    def search(self, query: str, source: str = 'all', top_k: int = 5) -> List[Dict]:
         """
         Search Oklahoma legal documents
 
         Args:
             query: Search query
-            source: 'constitution', 'statutes', or 'both'
+            source: 'constitution', 'statutes', 'cases', 'ag_opinions', 'both', or 'all'
             top_k: Number of results to return
         """
         if not self.ready:
@@ -221,13 +277,86 @@ class SearchSystem:
                     }
                     results.append(result)
 
+            # Search case law
+            if source in ['cases', 'both', 'all'] and self.case_law_index:
+                print(f"[DEBUG] Searching Case Law index for: '{query}' (top_k={top_k})")
+                case_results = self.case_law_index.query(
+                    vector=query_embedding[0],
+                    top_k=top_k,
+                    include_metadata=True
+                )
+                print(f"[DEBUG] Case Law search returned {len(case_results.matches)} results")
+
+                for match in case_results.matches:
+                    case_id = int(match.id.replace('case_', ''))
+                    citation = match.metadata.get('citation', 'N/A')
+                    court_type = match.metadata.get('court_type', '')
+                    decision_year = match.metadata.get('decision_year', '')
+
+                    # Build source label
+                    source_label = f'{citation}'
+                    if court_type:
+                        court_name = court_type.replace('_', ' ').title()
+                        source_label += f' ({court_name})'
+
+                    result = {
+                        'score': round(match.score * 100, 1),
+                        'source': source_label,
+                        'citation': citation,
+                        'case_title': match.metadata.get('case_title', 'Untitled'),
+                        'court_type': court_type,
+                        'decision_year': decision_year,
+                        'decision_date': match.metadata.get('decision_date', ''),
+                        'authoring_judge': match.metadata.get('authoring_judge', ''),
+                        'oscn_url': match.metadata.get('oscn_url', ''),
+                        'text': self.get_case_text(case_id),
+                        'type': 'case_law'
+                    }
+                    results.append(result)
+
+            # Search AG opinions
+            if source in ['ag_opinions', 'both', 'all'] and self.ag_opinions_index:
+                print(f"[DEBUG] Searching AG Opinions index for: '{query}' (top_k={top_k})")
+                ag_results = self.ag_opinions_index.query(
+                    vector=query_embedding[0],
+                    top_k=top_k,
+                    include_metadata=True
+                )
+                print(f"[DEBUG] AG Opinions search returned {len(ag_results.matches)} results")
+
+                for match in ag_results.matches:
+                    ag_id = int(match.id.replace('ag_', ''))
+                    citation = match.metadata.get('citation', 'N/A')
+                    opinion_year = match.metadata.get('opinion_year', '')
+
+                    # Build source label
+                    source_label = f'{citation} (AG Opinion)'
+
+                    result = {
+                        'score': round(match.score * 100, 1),
+                        'source': source_label,
+                        'citation': citation,
+                        'opinion_number': match.metadata.get('opinion_number', ''),
+                        'opinion_date': match.metadata.get('opinion_date', ''),
+                        'opinion_year': opinion_year,
+                        'requestor_name': match.metadata.get('requestor_name', ''),
+                        'requestor_title': match.metadata.get('requestor_title', ''),
+                        'question_presented': match.metadata.get('question_presented', ''),
+                        'oscn_url': match.metadata.get('oscn_url', ''),
+                        'text': self.get_ag_opinion_text(ag_id),
+                        'type': 'ag_opinion'
+                    }
+                    results.append(result)
+
             # Sort by relevance score
             results.sort(key=lambda x: x['score'], reverse=True)
 
             # Log final results summary
             const_count = sum(1 for r in results[:top_k] if r['type'] == 'constitution')
             stat_count = sum(1 for r in results[:top_k] if r['type'] == 'statute')
-            print(f"[DEBUG] Returning {len(results[:top_k])} results: {const_count} from Constitution, {stat_count} from Statutes")
+            case_count = sum(1 for r in results[:top_k] if r['type'] == 'case_law')
+            ag_count = sum(1 for r in results[:top_k] if r['type'] == 'ag_opinion')
+            print(f"[DEBUG] Returning {len(results[:top_k])} results: {const_count} Constitution, {stat_count} Statutes, {case_count} Case Law, {ag_count} AG Opinions")
 
             # Return top_k results
             return results[:top_k]
@@ -281,10 +410,10 @@ def search():
             return jsonify({'error': 'Please enter a search query'}), 400
 
         # Validate source parameter
-        source = data.get('source', 'both')
-        allowed_sources = ['constitution', 'statutes', 'both']
+        source = data.get('source', 'all')
+        allowed_sources = ['constitution', 'statutes', 'cases', 'ag_opinions', 'both', 'all']
         if source not in allowed_sources:
-            source = 'both'
+            source = 'all'
 
         # Validate top_k parameter
         top_k = data.get('top_k', 5)
