@@ -7,6 +7,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Clerk JavaScript SDK -->
+    <script
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_aHVtb3JvdXMtYmFzaWxpc2stMjIuY2xlcmsuYWNjb3VudHMuZGV2JA"
+        src="https://humorous-basilisk-22.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+        type="text/javascript"
+        onload="window.dispatchEvent(new Event('clerk-loaded'))"
+    ></script>
+
     <style>
         :root {
             --primary: #6366f1;
@@ -774,6 +785,76 @@
                 padding: 5px 10px;
             }
         }
+
+        /* Authentication Styles */
+        .auth-section {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .auth-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+        }
+
+        .auth-btn-secondary {
+            padding: 8px 16px;
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .auth-btn-secondary:hover {
+            background: var(--surface);
+            border-color: var(--primary);
+        }
+
+        .user-profile {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        #clerkSignIn {
+            max-width: 400px;
+            margin: 20px auto;
+        }
     </style>
 </head>
 <body>
@@ -787,9 +868,32 @@
             <p class="tagline">GPT-4 • Semantic Search • 43,000+ Indexed Statutes</p>
         </div>
 
+        <!-- User Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <!-- Signed Out State -->
+            <div id="signedOutState">
+                <button class="auth-btn" onclick="showSignIn()">
+                    🔐 Sign In
+                </button>
+            </div>
+
+            <!-- Signed In State -->
+            <div id="signedInState" style="display: none;">
+                <div class="user-profile">
+                    <img id="userAvatar" src="" alt="User" class="user-avatar">
+                    <span id="userName" class="user-name"></span>
+                    <button class="auth-btn-secondary" onclick="handleSignOut()">Sign Out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clerk Sign-In Component Container -->
+        <div id="clerkSignIn" style="display: none;"></div>
+
         <div class="mode-selector">
             <button class="mode-btn active" onclick="switchMode('ask')">💬 Ask a Question</button>
             <button class="mode-btn" onclick="switchMode('search')">🔍 Search Documents</button>
+            <button class="mode-btn" onclick="startNewConversation()" id="newConversationBtn" style="display: none;">🔄 New Conversation</button>
         </div>
 
         <div class="search-box">
@@ -912,8 +1016,174 @@
     </div>
 
     <script>
+        // ============================================
+        // Clerk Authentication
+        // ============================================
+        let clerkInstance = null;
+        let currentUser = null;
+
+        // Initialize Clerk when script loads
+        async function initializeClerkAuth() {
+            console.log('[Clerk] Initializing auth...');
+
+            if (!window.Clerk) {
+                console.warn('[Clerk] Clerk not available yet');
+                handleUserSignedOut();
+                return;
+            }
+
+            try {
+                // Load Clerk
+                clerkInstance = window.Clerk;
+                await clerkInstance.load();
+                console.log('[Clerk] Clerk loaded successfully');
+
+                // Check if user is signed in
+                if (clerkInstance.user) {
+                    console.log('[Clerk] User already signed in');
+                    handleUserSignedIn(clerkInstance.user);
+                } else {
+                    console.log('[Clerk] No user signed in');
+                    handleUserSignedOut();
+                }
+
+                // Listen for authentication state changes
+                clerkInstance.addListener((resources) => {
+                    console.log('[Clerk] Auth state changed:', resources);
+                    if (resources.user) {
+                        handleUserSignedIn(resources.user);
+                    } else {
+                        handleUserSignedOut();
+                    }
+                });
+            } catch (error) {
+                console.error('[Clerk] Failed to initialize:', error);
+                handleUserSignedOut();
+            }
+        }
+
+        // Wait for Clerk script to load
+        window.addEventListener('clerk-loaded', () => {
+            console.log('[Clerk] Script loaded, initializing...');
+            initializeClerkAuth();
+        });
+
+        // Fallback: check on page load
+        window.addEventListener('load', () => {
+            console.log('[Clerk] Page loaded');
+            // Wait a moment for async script to load
+            setTimeout(() => {
+                if (window.Clerk && !clerkInstance) {
+                    console.log('[Clerk] Found on window, initializing...');
+                    initializeClerkAuth();
+                } else if (!window.Clerk) {
+                    console.log('[Clerk] Still waiting for script to load...');
+                    handleUserSignedOut();
+                }
+            }, 1000);
+        });
+
+        // Show sign-in UI
+        async function showSignIn() {
+            try {
+                console.log('showSignIn called');
+
+                // Check if Clerk is available
+                if (!clerkInstance) {
+                    console.error('Clerk not initialized yet. Waiting...');
+
+                    // Wait for Clerk to load
+                    if (window.Clerk) {
+                        console.log('Clerk found on window, initializing...');
+                        clerkInstance = window.Clerk;
+                        await clerkInstance.load();
+                    } else {
+                        alert('Authentication system is loading. Please try again in a moment.');
+                        return;
+                    }
+                }
+
+                console.log('Mounting Clerk sign-in component');
+                const signInDiv = document.getElementById('clerkSignIn');
+                signInDiv.style.display = 'block';
+
+                // Mount Clerk sign-in component
+                await clerkInstance.mountSignIn(signInDiv, {
+                    routing: 'virtual',
+                    redirectUrl: window.location.href,
+                    appearance: {
+                        variables: {
+                            colorPrimary: '#6366f1'
+                        }
+                    }
+                });
+
+                console.log('Clerk sign-in component mounted successfully');
+            } catch (error) {
+                console.error('Failed to show sign-in:', error);
+                alert('Failed to load sign-in. Error: ' + error.message);
+            }
+        }
+
+        // Handle user signed in
+        function handleUserSignedIn(user) {
+            currentUser = user;
+
+            // Update UI
+            document.getElementById('signedOutState').style.display = 'none';
+            document.getElementById('signedInState').style.display = 'block';
+            document.getElementById('clerkSignIn').style.display = 'none';
+
+            // Update user info
+            const fullName = user.fullName || user.primaryEmailAddress?.emailAddress || 'User';
+            document.getElementById('userName').textContent = fullName;
+            document.getElementById('userAvatar').src = user.imageUrl || '';
+
+            console.log('User signed in:', user.id);
+        }
+
+        // Handle user signed out
+        function handleUserSignedOut() {
+            currentUser = null;
+
+            // Update UI
+            document.getElementById('signedOutState').style.display = 'block';
+            document.getElementById('signedInState').style.display = 'none';
+            document.getElementById('clerkSignIn').style.display = 'none';
+
+            console.log('User signed out');
+        }
+
+        // Sign out handler
+        async function handleSignOut() {
+            try {
+                await clerkInstance.signOut();
+                handleUserSignedOut();
+            } catch (error) {
+                console.error('Failed to sign out:', error);
+            }
+        }
+
+        // Get authentication token for API calls
+        async function getAuthToken() {
+            if (!clerkInstance || !clerkInstance.session) {
+                return null; // No authentication - anonymous user
+            }
+
+            try {
+                return await clerkInstance.session.getToken();
+            } catch (error) {
+                console.error('Failed to get auth token:', error);
+                return null;
+            }
+        }
+
+        // ============================================
+        // Application Code
+        // ============================================
         let currentMode = 'ask';
         let lastQueryData = null;
+        let currentSessionId = null;  // Track conversation session ID
 
         function switchMode(mode) {
             currentMode = mode;
@@ -936,6 +1206,30 @@
             } else {
                 document.getElementById('questionInput').focus();
             }
+        }
+
+        function startNewConversation() {
+            // Clear current session
+            currentSessionId = null;
+            console.log('Started new conversation');
+
+            // Hide the new conversation button
+            document.getElementById('newConversationBtn').style.display = 'none';
+
+            // Clear the question input
+            document.getElementById('questionInput').value = '';
+
+            // Hide results
+            document.getElementById('results').style.display = 'none';
+
+            // Focus on input
+            document.getElementById('questionInput').focus();
+
+            // Show a brief notification
+            showError('Started a new conversation');
+            setTimeout(() => {
+                document.getElementById('error').style.display = 'none';
+            }, 2000);
         }
 
         function setSearchQuery(query) {
@@ -972,9 +1266,18 @@
             showLoading('Searching...');
 
             try {
+                // Get auth token if user is signed in
+                const authToken = await getAuthToken();
+
+                // Build headers
+                const headers = { 'Content-Type': 'application/json' };
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
                 const response = await fetch('/search', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify({ query: query, source: source, top_k: 5 }),
                 });
 
@@ -1008,19 +1311,44 @@
             showLoading('Thinking...');
 
             try {
+                const requestBody = {
+                    question: question,
+                    model: model,
+                    num_sources: 3
+                };
+
+                // Include session_id if we have an active conversation
+                if (currentSessionId) {
+                    requestBody.session_id = currentSessionId;
+                }
+
+                // Get auth token if user is signed in
+                const authToken = await getAuthToken();
+
+                // Build headers
+                const headers = { 'Content-Type': 'application/json' };
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+
                 const response = await fetch('/ask', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        question: question,
-                        model: model,
-                        num_sources: 3
-                    }),
+                    headers: headers,
+                    body: JSON.stringify(requestBody),
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) throw new Error(data.error || 'Failed to get answer');
+
+                // Store session_id from response
+                if (data.session_id) {
+                    currentSessionId = data.session_id;
+                    console.log('Conversation session:', currentSessionId);
+
+                    // Show "New Conversation" button after first question
+                    document.getElementById('newConversationBtn').style.display = 'inline-block';
+                }
 
                 displayAnswer(data);
 

@@ -19,6 +19,11 @@ EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')  # Read
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
+# Clerk Authentication
+CLERK_PUBLISHABLE_KEY = os.getenv('CLERK_PUBLISHABLE_KEY', 'pk_test_aHVtb3JvdXMtYmFzaWxpc2stMjIuY2xlcmsuYWNjb3VudHMuZGV2JA')
+CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY', 'sk_test_Ug5Da7Jt8Bd6hjQZesCZC9AIcffvONL4rd538piMzN')
+CLERK_FRONTEND_API = os.getenv('CLERK_FRONTEND_API', 'https://humorous-basilisk-22.clerk.accounts.dev')
+
 # Application Settings
 BATCH_SIZE = 100
 MAX_TEXT_LENGTH = 8000

@@ -182,8 +182,8 @@ class ConstitutionRAG:
             print(f"[ERROR] Search failed: {e}")
             return []
 
-    def generate_answer(self, question: str, context_sections: List[Dict], model: str = "gpt-4") -> Dict:
-        """Generate a natural language answer using GPT-4"""
+    def generate_answer(self, question: str, context_sections: List[Dict], model: str = "gpt-4", conversation_history: List[Dict] = None) -> Dict:
+        """Generate a natural language answer using GPT-4 with conversation history"""
 
         # Build context from relevant sections
         context = ""
@@ -209,7 +209,8 @@ Guidelines:
 5. Use plain language that citizens can understand
 6. If relevant, explain the legal implications or practical meaning
 7. Distinguish between constitutional provisions and statutory law when relevant
-8. Provide a focused summary rather than exhaustive detail"""
+8. Provide a focused summary rather than exhaustive detail
+9. If this is a follow-up question, use the conversation history to provide context-aware answers"""
 
             user_prompt = f"""Question: {question}
 
@@ -227,7 +228,8 @@ When answering questions:
 2. If the question is NOT about Oklahoma law (e.g., general knowledge questions), you may answer using your general knowledge
 3. If legal sources are provided but not very relevant to the question, acknowledge this and provide a helpful answer anyway
 4. Be clear, concise, and accurate
-5. Use plain language that anyone can understand"""
+5. Use plain language that anyone can understand
+6. If this is a follow-up question, use the conversation history to provide context-aware answers"""
 
             user_prompt = f"""Question: {question}
 
@@ -238,13 +240,23 @@ Here are the closest matches found:
 Please answer the question. If it's about Oklahoma law, use the sources above. If it's a general question, you may use your general knowledge to help the user."""
 
         try:
+            # Build messages array with conversation history
+            messages = [{"role": "system", "content": system_prompt}]
+
+            # Add conversation history if available (limit to last 10 messages to avoid token limits)
+            if conversation_history:
+                # Only include the last 10 messages to keep context manageable
+                recent_history = conversation_history[-10:] if len(conversation_history) > 10 else conversation_history
+                messages.extend(recent_history)
+                print(f"[DEBUG] Including {len(recent_history)} messages from conversation history")
+
+            # Add the current question
+            messages.append({"role": "user", "content": user_prompt})
+
             # Call GPT-4 with shorter response limit
             response = self.openai_client.chat.completions.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
+                messages=messages,
                 temperature=0.3,  # Lower temperature for more factual responses
                 max_tokens=500  # Reduced from 1000 to ensure concise responses
             )
@@ -280,7 +292,7 @@ Please answer the question. If it's about Oklahoma law, use the sources above. I
                 'tokens_used': 0
             }
 
-    def ask_question(self, question: str, num_sources: int = 3, model: str = "gpt-4") -> Dict:
+    def ask_question(self, question: str, num_sources: int = 3, model: str = "gpt-4", conversation_history: List[Dict] = None) -> Dict:
         """
         Main RAG function: Search + Generate Answer
 
@@ -288,6 +300,7 @@ Please answer the question. If it's about Oklahoma law, use the sources above. I
             question: User's question about Oklahoma law (Constitution and Statutes)
             num_sources: Number of relevant sections to retrieve
             model: OpenAI model to use (gpt-4, gpt-3.5-turbo, etc.)
+            conversation_history: Optional conversation history for context
 
         Returns:
             Dictionary with answer, sources, and metadata
@@ -316,8 +329,8 @@ Please answer the question. If it's about Oklahoma law, use the sources above. I
         print(f"Found {len(relevant_sections)} relevant sections")
         print("Generating answer with GPT-4...")
 
-        # Step 2: Generate answer using GPT-4
-        result = self.generate_answer(question, relevant_sections, model)
+        # Step 2: Generate answer using GPT-4 with conversation history
+        result = self.generate_answer(question, relevant_sections, model, conversation_history)
 
         print(f"[OK] Answer generated ({result['tokens_used']} tokens used)")
 

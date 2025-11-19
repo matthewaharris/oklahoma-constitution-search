@@ -24,6 +24,8 @@ else:
 
 from vector_database_builder import ConstitutionVectorBuilder
 from rag_search import ConstitutionRAG
+from conversation_manager import ConversationManager
+from auth_helpers import optional_auth, get_user_from_request
 from supabase import create_client
 
 app = Flask(__name__)
@@ -371,6 +373,9 @@ search_system = SearchSystem()
 # Global RAG system instance
 rag_system = ConstitutionRAG()
 
+# Global conversation manager instance
+conversation_manager = ConversationManager()
+
 # Security: Add security headers to all responses
 @app.after_request
 def add_security_headers(response):
@@ -379,7 +384,15 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev; "
+        "style-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev; "
+        "connect-src 'self' https://*.clerk.accounts.dev; "
+        "img-src 'self' data: https://*.clerk.accounts.dev https://img.clerk.com; "
+        "frame-src 'self' https://*.clerk.accounts.dev; "
+        "font-src 'self' data: https://fonts.gstatic.com;"
+    )
     return response
 
 # Security: Rate limit error handler
@@ -435,8 +448,9 @@ def search():
 
 @app.route('/ask', methods=['POST'])
 @limiter.limit("10 per minute")  # Stricter limit for expensive GPT calls
-def ask():
-    """Handle RAG question-answering requests"""
+@optional_auth
+def ask(current_user=None):
+    """Handle RAG question-answering requests with conversation memory and optional authentication"""
     try:
         data = request.get_json()
         if not data:
@@ -458,28 +472,88 @@ def ask():
         if not isinstance(num_sources, int) or num_sources < 1 or num_sources > 5:
             num_sources = 3
 
+        # Get or create session_id for conversation memory
+        session_id = data.get('session_id')
+        user_ip = get_remote_address()
+
+        # Extract user_id if authenticated
+        user_id = current_user['user_id'] if current_user else None
+
+        # Log authentication status
+        if current_user:
+            print(f"[AUTH] Request from user: {current_user['user_id']} ({current_user.get('email', 'no-email')})")
+        else:
+            print("[AUTH] Anonymous request")
+
+        if session_id:
+            # Validate that session exists
+            if not conversation_manager.session_exists(session_id):
+                print(f"[WARNING] Session {session_id} not found, creating new session")
+                session_id = None
+
+        if not session_id:
+            # Create new conversation session with user_id
+            session_id = conversation_manager.create_session(
+                user_id=user_id,
+                user_ip=user_ip,
+                metadata={'model': model}
+            )
+            print(f"[INFO] Created new conversation session: {session_id}")
+
+        # Get conversation history
+        conversation_history = conversation_manager.get_messages_for_llm(session_id, max_messages=10)
+        print(f"[INFO] Retrieved {len(conversation_history)} messages from conversation history")
+
         # Initialize RAG system if needed
         if not rag_system.ready:
             if not rag_system.initialize():
                 return jsonify({'error': 'Service temporarily unavailable'}), 503
 
-        # Get answer
-        result = rag_system.ask_question(question, num_sources=num_sources, model=model)
+        # Get answer with conversation history
+        result = rag_system.ask_question(
+            question,
+            num_sources=num_sources,
+            model=model,
+            conversation_history=conversation_history
+        )
 
         if 'error' in result:
             return jsonify({'error': 'Unable to generate answer. Please try again.'}), 500
+
+        # Store the user's question and assistant's answer in conversation history
+        conversation_manager.add_message(
+            session_id=session_id,
+            role='user',
+            content=question
+        )
+
+        conversation_manager.add_message(
+            session_id=session_id,
+            role='assistant',
+            content=result['answer'],
+            metadata={
+                'tokens_used': result['tokens_used'],
+                'model': result['model'],
+                'num_sources': len(result['sources'])
+            }
+        )
+
+        print(f"[INFO] Stored conversation messages for session {session_id}")
 
         return jsonify({
             'answer': result['answer'],
             'sources': result['sources'],
             'question': question,
             'tokens_used': result['tokens_used'],
-            'model': result['model']
+            'model': result['model'],
+            'session_id': session_id  # Return session_id to frontend
         })
 
     except Exception as e:
         # Don't expose internal errors to users
         print(f"Ask error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Unable to process question. Please try again.'}), 500
 
 @app.route('/about')
