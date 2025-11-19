@@ -474,9 +474,11 @@ def submit_feedback():
         if answer_type not in ['ask', 'search']:
             return jsonify({'error': 'answer_type must be "ask" or "search"'}), 400
 
-        # Use the already-initialized Supabase client
-        supabase = search_system.supabase
-        if not supabase:
+        # Create Supabase client directly (works in both local and production)
+        try:
+            supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        except Exception as e:
+            print(f"[FEEDBACK] Failed to connect to Supabase: {e}")
             return jsonify({'error': 'Database connection not available'}), 503
 
         feedback_data = {
@@ -522,9 +524,11 @@ def submit_general_feedback():
         if feedback_type not in valid_types:
             return jsonify({'error': f'feedback_type must be one of: {", ".join(valid_types)}'}), 400
 
-        # Use the already-initialized Supabase client
-        supabase = search_system.supabase
-        if not supabase:
+        # Create Supabase client directly (works in both local and production)
+        try:
+            supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        except Exception as e:
+            print(f"[FEEDBACK] Failed to connect to Supabase: {e}")
             return jsonify({'error': 'Database connection not available'}), 503
 
         feedback_data = {
