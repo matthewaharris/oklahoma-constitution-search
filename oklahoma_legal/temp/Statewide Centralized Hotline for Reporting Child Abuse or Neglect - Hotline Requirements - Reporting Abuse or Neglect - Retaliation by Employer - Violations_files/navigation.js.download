@@ -1,0 +1,180 @@
+var tmp
+var hash = location.hash;
+console.log("LOAD NAVIGATION.JS FILE");
+
+	function close_all_in_group(calling_item){
+		if(!calling_item.attributes['data-toggle-group']){ return; }
+		name = calling_item.attributes['data-toggle-group'].value;
+		Array.from(document.querySelectorAll(`[data-toggle-group="${name}"][aria-expanded="true"]`)).filter(function(item){ return item !== calling_item}).forEach(function(item){
+			item.setAttribute('aria-expanded','false');
+			linkid = item.getAttribute('aria-controls');
+			container = document.getElementById(linkid);
+			container.classList.remove("show");
+		});	
+	}
+	
+	function open_menu(item){
+		close_menu_all(item);
+		target = item.getAttribute('data-panel-id');
+		target = document.getElementById(target);
+		item.setAttribute('aria-expanded','true');
+		
+		target.removeAttribute('hidden');
+		document.querySelector('body').classList.add('nav-menu-open');
+		close_submenu_all();
+	}
+	function close_menu(item){
+		target = item.getAttribute('data-panel-id');
+		target = document.getElementById(target);
+		item.setAttribute('aria-expanded','false');
+		
+		target.setAttribute('hidden','');
+		document.querySelector('body').classList.remove('nav-menu-open');		
+	}
+	function close_menu_all(item){
+		//except item
+		Array.from(document.querySelectorAll('[data-panel-id][aria-expanded="true"]')).filter(function(ele){ return item !== ele; }).forEach(function(ele){ close_menu(ele);});
+	}
+	function open_submenu(item){
+		close_submenu_all(item);
+		target = '.' + item.getAttribute('sub-panel-id');
+		target = document.querySelectorAll(target)[0];
+		item.setAttribute('aria-expanded','true');
+		item.parentNode.classList.add('open');
+		
+		target.removeAttribute('hidden');
+		target.classList.add('open');
+	}
+	function close_submenu(item){
+		target = '.' + item.getAttribute('sub-panel-id');
+		target = document.querySelectorAll(target)[0];
+		item.setAttribute('aria-expanded','false');
+		item.parentNode.classList.remove('open');
+
+		target.setAttribute('hidden','');
+	}
+	function close_submenu_all(item){
+		//except item
+		Array.from(document.querySelectorAll('[sub-panel-id][aria-expanded="true"]')).filter(function(ele){ return item !== ele; }).forEach(function(ele){ close_submenu(ele);});
+	}
+	document.querySelectorAll('#site-navigation button[data-panel-id]').forEach(function(nav){
+		nav.addEventListener("click", function (event){
+			source = this;
+			//IF CLOSED
+			if(source.getAttribute('aria-expanded') === 'false'){ open_menu(source); }
+			//ELSE IF OPENED
+			else{ close_menu(source); }
+		});
+	});
+	document.getElementById('site-navigation').addEventListener("click", function( event){
+		if(event.which != 1){ return; } 
+		/************************
+		NAVIGATION
+		************************/
+		/* HAMBURGER BUTTON | TOGGLE */
+		if(event.target.id == 'toggle'){
+			toggle_button = event.target;
+			
+			body = document.querySelectorAll('body')[0];
+			body.classList.toggle("nav-menu-open");
+			
+			toggle_button.parentNode.classList.toggle( 'toggled' );
+
+			if ( toggle_button.getAttribute( 'aria-expanded' ) === 'true' ) {
+				toggle_button.setAttribute( 'aria-expanded', 'false' );
+				close_submenu_all();
+				close_menu_all();
+			} else {
+				toggle_button.setAttribute( 'aria-expanded', 'true' );
+			}			
+		}
+		
+		else if(event.target.attributes['data-panel-id']){
+			/*source = event.target;
+			//IF CLOSED
+			if(source.getAttribute('aria-expanded') === 'false'){ open_menu(source); }
+			//ELSE IF OPENED
+			else{ close_menu(source); }*/
+		}
+		else if(event.target.attributes['sub-panel-id']){
+			source = event.target;
+			console.log(source, this)
+			//IF CLOSED
+			if(source.getAttribute('aria-expanded') === 'false'){ open_submenu(source);	}
+			//ELSE IF OPENED
+			else{ close_submenu(source); }
+		}
+		else if(event.target.classList.contains('navigation_background_overlay') || event.target.classList.contains('nav_panel')){
+			console.log('background');
+			close_menu_all();
+		}
+		
+		/************************
+		ACCORDIAN
+		************************/		
+		else if(event.target.attributes['data-toggle']){
+			if(event.target.attributes['data-toggle'].value == 'shrink'){
+				event.preventDefault();
+				target = event.target;
+					
+				console.log(target);
+				//FIRST CLOSE ALL OPEN ITEMS IN THE SAME DATA-TOGGLE-GROUP
+				close_all_in_group(target);		
+				
+				//TOGGLE THIS ITEM AS EXPANDED OR CLOSED
+				open = target.getAttribute('aria-expanded');
+				//IF IT'S CLOSED
+				if(open === 'false'){
+					target.setAttribute('aria-expanded',true);
+					linkid = target.getAttribute('aria-controls');
+					container = document.getElementById(linkid);
+					container.classList.add("show");
+					container.removeAttribute('hidden');
+				}
+				else{
+					target.setAttribute('aria-expanded',false);
+					linkid = target.getAttribute('aria-controls');
+					container = document.getElementById(linkid);
+					container.classList.remove("show");
+					container.setAttribute('hidden','');
+				}
+			}
+		}
+		//CATCH SPAN TAGS OR OTHER THAT ARE NESTED IN ANCHOR
+		
+		else if(event.target.tagName != "A"){target = event.target.closest('a');  console.log('bubble',event.target);if(target){ event.preventDefault(); target.click(); }	}			
+	});
+
+//FOOTER
+document.querySelectorAll('.footer-links-anchor')[0].addEventListener("click", function( event){
+	if(event.which != 1){ return; }
+	if(event.target.attributes['data-toggle']){
+		if(event.target.attributes['data-toggle'].value == 'shrink'){
+			event.preventDefault();
+			target = event.target;
+				
+			console.log(target);
+			//FIRST CLOSE ALL OPEN ITEMS IN THE SAME DATA-TOGGLE-GROUP
+			close_all_in_group(target);		
+			
+			//TOGGLE THIS ITEM AS EXPANDED OR CLOSED
+			open = target.getAttribute('aria-expanded');
+			//IF IT'S CLOSED
+			if(open === 'false'){
+				target.setAttribute('aria-expanded',true);
+				linkid = target.getAttribute('aria-controls');
+				container = document.getElementById(linkid);
+				container.classList.add("show");
+				container.removeAttribute('hidden');
+			}
+			else{
+				target.setAttribute('aria-expanded',false);
+				linkid = target.getAttribute('aria-controls');
+				container = document.getElementById(linkid);
+				container.classList.remove("show");
+				container.setAttribute('hidden','');
+			}
+		}
+	}
+	else if(event.target.tagName != "A"){target = event.target.closest('a');  if(target){ event.preventDefault(); target.click(); }	}
+});	

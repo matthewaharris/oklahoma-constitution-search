@@ -1,0 +1,165 @@
+@import url("css/primary_navigation.css?v=1.0.0");
+@import url("css/judges.css");
+@import url("css/branding.css");
+@import url("css/footer.css");
+@import url("css/media.css?v=1.0.0");
+:root {
+	--main-bg-color: #033c60;
+	--secondary-color: #0073cf;
+	--sm-break-pt: 576px;
+	--md-break-pt: 768px;
+	--lg-break-pt: 1280px;
+}
+/*SKIP NAVIGATION*/
+a.skip-nav {
+    height: 1px;
+    padding: 0;
+    margin: 0;
+    width: 1px;
+    line-height: 1px;
+    position: absolute;
+    font-size: 1px;
+	left: -10000%;
+}
+a.skip-nav:focus {
+    padding: 10px 20px;
+    display: inline-block;
+    background-color: silver;
+    color: black;
+    border-radius: 5px;
+    z-index: 100000;
+    font-size: 1rem;
+    line-height: 1rem;
+    height: auto;
+    width: auto;
+    position: relative;
+	left: 0;
+}
+/*BOOTSTRAP TYPE STYLES*/
+	body {
+		margin: 0;
+	}
+	.navigation a {
+		text-decoration: none;
+	}
+	*, ::after, ::before {
+		box-sizing: border-box;
+	}	
+	.sub_panel {
+		scrollbar-gutter: stable;
+	}
+/*NAVGITAION SETUP*/
+	#masthead *, #colophon *{
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	}
+	#masthead {
+		position: relative;
+		z-index: 800;
+		border-bottom: solid 1px rgba(255,255,255,0.15);
+	}	
+	.nav_container {
+		height: 5.5rem;
+		position: relative;
+		margin: auto;
+	}
+	.site-header {
+		background-color: var(--main-bg-color);
+	}
+	.navigation a:focus {
+		outline: none;
+		box-shadow: 0 0 0 3px #0088Cc;
+	}
+	
+	/*BACKGROUND OVERLAY*/
+	.nav-menu-open .navigation_background_overlay {
+		background-color: gray;
+		position: fixed;
+		top: 0;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		opacity: 0.5;
+		height: 100vh;
+		width: 100vw;
+	}
+	.navigation_background_overlay {
+		position: fixed;
+	}
+	.nav-menu-open {
+		overflow: hidden;
+	}
+	.nav-menu-open header#masthead,
+	.nav-menu-open .site-main {
+		/*padding-right: 18px;*//*THIS WAS TO FIX THE CONTENT SHIFTING WHEN OPENING MENUS - OPTED FOR THE scrollbar-gutter: stable instead*/
+	}
+	html {
+		scrollbar-gutter: stable;
+	}
+	
+
+	
+	.navigation.toggled {
+		width: 32rem; /*ISSUE WITH RENDERING*/
+		width: 38rem;
+		position: absolute;	
+		right: 0;
+		height: 100vh;
+		padding-top: 5.5rem;
+		height: 100vh;
+	}
+	.navigation.toggled:before {
+		content: "";
+		display: block;
+		width: 100%;
+		height: 100%;
+		padding-top: 5.5rem;
+		background-color: white;
+		position: absolute;
+		top: 0;
+		z-index: 1;
+	}
+	.navigation.toggled:after {
+		content: "";
+		display: block;
+		width: 100vw;
+		height: 100vh;
+		position: absolute;
+		top: 0;
+		right: 0;
+		left: 100%;
+		background-color: white;
+		-webkit-box-shadow: inset 16px 1px 16px -13px rgb(59 59 59 / 25%);
+		box-shadow: inset 16px 1px 16p;
+	}	
+/**************************
+NAVGITAION JUDGES
+***************************/
+
+    li[class*='link'] {
+        line-height: 1rem;
+        padding: 1.25rem 0rem!important;
+        padding-left: 3.5rem!important;
+        overflow: hidden;
+    }
+    li[class*='link'] a{
+        text-decoration: none!important;
+        font-weight: 600;
+    }
+    li[class*='link'] a:before {
+        content:url('data:image/jpeg;base64,/9j/4QAYRXhpZgAASUkqAAgAAAAAAAAAAAAAAP/sABFEdWNreQABAAQAAABGAAD/7gAOQWRvYmUAZMAAAAAB/9sAhAAEAwMDAwMEAwMEBgQDBAYHBQQEBQcIBgYHBgYICggJCQkJCAoKDAwMDAwKDAwNDQwMEREREREUFBQUFBQUFBQUAQQFBQgHCA8KCg8UDg4OFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAA1ACoDAREAAhEBAxEB/8QAYgAAAwEAAwEAAAAAAAAAAAAAAgQFAwABBggBAQAAAAAAAAAAAAAAAAAAAAAQAAIBAwQCAQUAAAAAAAAAAAABEQIDBCFBEhMxUQVhobEjFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A+RGpAF22B11VegOdbAJUtAHH4gBmmy2wNqcRvYDT+J+gAqw2tgMasdoAOr6AVrGPIFTHweWwDq+LlTAC974/ivAEvIxuM6AJ9KAsYttSgL+FZpcSBct41t25jUCbm2KVOgHnsy0tYAm9a9bgPYrhoC5iXVTAFOnKikBPKvqpPUCHl1JtgT5XrcA7NcQBQs3+O4DSytPIGN3IleQJ965IC3JfcAaOWwDVHOANf2gBX2bgLXOW4GOoH//Z');
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        filter: saturate(35%);
+    }
+	
+/******************************
+FOOTER
+******************************/
+#oscn-content {
+    min-height: calc(calc(100vh) - calc(367px + 89px));
+}
+#colophon a:visited, #colophon a:hover {
+	color: white;
+}

@@ -1,0 +1,163 @@
+
+
+function fixlayout(){
+var leftovers = [];
+var parent = null;
+
+var starters = ['a','A','1','(1)'];
+var lastobject
+var ident = [];
+var hrchy = [];
+var styles = [];
+var breakpoints = $("strong").filter(function(i,v){
+    return v.innerText.match(/Version\s\d+/gi);
+});
+var parent = null;
+var end = false;
+breakpoints.toArray().forEach(function(v){ v.closest('p').classList.add("breakpoint","formatitem");});
+var start_element
+var skip = false;
+$("span[style='mso-spacerun: yes']").contents().unwrap();//http://oscnsearchidx/applications/oscn/deliverdocument.asp?lookup=Next&listorder=57900&dbCode=STOKST68&year=
+$("p").each(function(i,v){
+	if(v.innerText.match(/^Historical\sData/)){ skip = true;};
+	if(skip){ return; }
+	if(i==1){ start_element = v; }
+	if(start_element != null){ v.classList.add("paragraphs"); }
+});
+$(".paragraphs").wrapAll("<div class='document'>");
+
+$(".document .paragraphs").each(function(i,ele,array){
+	found = ele.innerText.trim().match(/^([a-zA-Z0-9]{1,3}\.\s*|^\([0-9a-zA-Z]{1,3}\)?\s*)+/i);
+	if(found){
+		items = found[0].match(/([a-zA-Z0-9]{1,3}\.|\([0-9a-zA-Z]{1,3}\)?)/gi);
+		items.forEach(function(v,i){
+			temp = v.replace(/[^a-zA-Z0-9]+/gi,'');
+			////console.log(item);
+			     if(v.match(/\([0-9]+\)/g))    { object = {e:ele,i:temp,t:"NumPar",s:"decimal-leading-zero"}; }
+			else if(temp.match(/[0-9]/g))     { object = {e:ele,i:temp,t:"Num"   ,s:"decimal"};}
+			else if(temp.match(/[a-z]/g))     { object = {e:ele,i:temp,t:"Lower" ,s:"lower-alpha"};}
+			else if(temp.match(/[A-Z]/g))     { object = {e:ele,i:temp,t:"Upper" ,s:"upper-alpha"};}
+
+
+			
+			//START OF LIST
+			if(starters.indexOf(object.i) > -1){
+				//CHECK TO SEE IF THIS IS DUPLICATE LIST - START NEW DOCUMENT
+				if(hrchy.filter(function(v){ return v.t == object.t; }).length>0){
+					hrchy = [];
+				}
+				
+				hrchy.push(object);
+				list = document.createElement("ol");
+				//list.style = "list-style-type:"+object.s;
+				list.style = "list-style-type:none;";
+				if(parent == null){
+					ele.parentNode.insertBefore(list,ele);
+					parent = list;
+				}
+				else{
+					////console.log(parent.lastChild);
+					if(parent.lastChild){
+						parent.lastChild.appendChild(list);
+					}
+					else {
+						ele.parentNode.insertBefore(list,ele);
+					}
+					parent = list;
+				}
+				//console.log("starter",ele);
+			}
+			
+			
+			
+			//CLOSE
+			else if(lastobject.t != object.t){
+				while(true){
+					x = hrchy.pop();
+					////console.log(parent,$(parent).parents('ol')[0]);
+					parent = $(parent).parents('ol')[0];					
+					if(hrchy[hrchy.length-1].t == object.t){ break; }
+				}
+				//IF LEFTOVERS THEN ATTACH THEM TO PARENT OL
+				if(leftovers.length > 0){
+					//console.log(parent,leftovers);
+					leftovers.forEach(function(v){ 
+						parent.lastChild.appendChild(v);
+					});
+					leftovers = [];
+				}
+			}
+			
+			
+			
+			//NORMAL
+			else{
+				//IF LEFTOVERS THEN ATTACH TO LAST CHILD OF PARENT - http://oscnsearchidx/applications/oscn/deliverdocument.asp?lookup=Next&listorder=57200&dbCode=STOKST68&year=
+				if(leftovers.length > 0) { 
+					leftovers.forEach(function(v){ 
+						parent.lastChild.appendChild(v);
+					});
+					leftovers = [];
+				}
+			}
+			
+			classname = object.t + "_" + object.i;
+			//console.log(classname);
+			styles.push("."+classname+":before { content:'"+v+"'; }");
+
+			listitem = document.createElement("li");
+			if(items.length > 1 && i == 0){
+				//console.log(items, i);
+				listitem.innerHTML = ""
+			}else{
+				listitem.innerHTML = ele.outerHTML;
+			}
+			listitem.classList += "listitem-custom ";
+			listitem.classList += classname+" ";
+			
+			var regex = new RegExp(found[0].trim().replace(/[()]/g, '\\$&').replace(/\s|\&nbsp\;/gi,"(\\s|\&nbsp\;)+")+"(\\s|\&nbsp\;)+");
+			console.log(found[0], regex);
+			listitem.innerHTML = listitem.innerHTML.replace(regex,'');
+			listitem.classList.add("listitem","formatitem");
+			
+			parent.appendChild(listitem);
+			if(ele.parentNode != null){ ele.parentNode.removeChild(ele); }
+			lastobject = object;
+		});
+	}
+	else{
+		if(ele.innerText.match(/Version\s\d/)){
+			//parent.appendChild(ele);
+			parent = null;
+		}
+		if(parent){ 
+			ele.classList += " non-list-item";
+			//parent.closest(".document > ol").appendChild(ele); 
+			leftovers.push(ele);
+		}
+	}
+});
+	while(true){
+		if(hrchy.length == 1){ break; }		
+		x = hrchy.pop();
+		parent = $(parent).parents('ol')[0];
+		if(hrchy[hrchy.length-1].t == hrchy[0].t){ break; }
+	}
+
+	if(leftovers.length > 0){
+		//console.log(parent);
+		leftovers.forEach(function(v){ 
+			parent.lastChild.appendChild(v);
+		});
+		leftovers = [];
+	}	
+	
+	styles = styles.filter(function(value, index, self){
+		return self.indexOf(value) === index;
+	})
+	styletag = document.createElement('style');
+	styletag.innerHTML = ".listitem-custom { position: relative; } .listitem-custom:before { position: absolute; left: -1.5em; }";
+	styletag.innerHTML += styles.join(' ');
+	doc = document.getElementsByClassName('document')[0]
+	doc.appendChild(styletag);	
+}

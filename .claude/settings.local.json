@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(../discovery_output.log)",
+      "Bash(if exist case_law_embedding_progress.json del case_law_embedding_progress.json)",
+      "Bash(del case_law_embedding_progress.json 2)",
+      "Bash(.gitignore)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
